@@ -1,0 +1,78 @@
+# =========================
+# Angular / Node
+# =========================
+/node_modules
+/.pnp
+.pnp.*
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build / output
+/dist
+/out-tsc
+/bazel-out
+/tmp
+/coverage
+*.tsbuildinfo
+
+# Angular cache
+.angular/cache
+.sass-cache/
+.cache/
+/connect.lock
+/libpeerconnection.log
+testem.log
+/typings
+__screenshots__/
+
+# =========================
+# Editores / IDE
+# =========================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+!.vscode/mcp.json
+.history/*
+.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.sublime-workspace
+
+# =========================
+# Sistema operativo
+# =========================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# =========================
+# Entornos y secretos
+# =========================
+.env
+.env.*
+!.env.example
+*.local
+
+# =========================
+# Logs y varios
+# =========================
+logs
+*.log
+.runtimeconfig.json

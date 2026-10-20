@@ -1,0 +1,15 @@
+.git
+.gitignore
+node_modules
+dist
+.angular
+coverage
+.vscode
+.idea
+.opencode
+.agents
+skills-lock.json
+feature-list.md
+AGENTS.md
+README.md
+*.log

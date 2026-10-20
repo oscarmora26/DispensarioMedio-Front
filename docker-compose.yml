@@ -1,0 +1,21 @@
+name: dispensario-medico-front
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dispensario-medico-front:local
+    ports:
+      - '8080:8080'
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1']
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
