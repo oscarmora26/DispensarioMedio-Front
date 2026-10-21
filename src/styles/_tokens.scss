@@ -1,0 +1,464 @@
+// =============================================================================
+// Design System «Clinical Academic Authority» — tokens
+// =============================================================================
+//
+// ¿Por qué el prefijo `--dm-*`?
+//
+//   `--mat-sys-*` es una API generada por Angular Material a partir de
+//   `mat.theme()`. Redefinirla a mano rompe la coherencia interna de Material 3
+//   (roles, estados, modo oscuro, tokens por componente) y se sobreescribe en
+//   cada build. Por eso los valores propios del producto —estados clínicos,
+//   chips, layout, elevación y tipografía— viven en `--dm-*`, un espacio de
+//   nombres estable que ningún build de Angular Material toca. Los componentes
+//   de Material se alinean con el sistema mediante las paletas custom de
+//   `mat.theme()` y overrides puntuales, nunca redefiniendo `--mat-sys-*`.
+//
+// Este partial no emite CSS al importarse: expone `dm-emit-tokens` (que declara
+// los custom properties en `:root`), los mixins de tipografía y los mixins de
+// breakpoints. Así los componentes pueden importar los mixins sin duplicar el
+// bloque de variables en cada stylesheet encapsulado.
+// =============================================================================
+
+@use 'sass:map';
+
+// -----------------------------------------------------------------------------
+// Breakpoints (declarados una sola vez)
+// -----------------------------------------------------------------------------
+
+$dm-breakpoint-tablet: 768px;
+$dm-breakpoint-desktop: 1280px;
+$dm-breakpoint-mobile-max: 767.98px;
+$dm-breakpoint-tablet-max: 1279.98px;
+
+/// Mobile-first: aplica desde 768px inclusive.
+@mixin dm-tablet-up {
+  @media (min-width: $dm-breakpoint-tablet) {
+    @content;
+  }
+}
+
+/// Desktop: aplica desde 1280px inclusive.
+@mixin dm-desktop {
+  @media (min-width: $dm-breakpoint-desktop) {
+    @content;
+  }
+}
+
+/// Tablet exclusivo: 768px–1279px.
+@mixin dm-tablet {
+  @media (min-width: $dm-breakpoint-tablet) and (max-width: $dm-breakpoint-tablet-max) {
+    @content;
+  }
+}
+
+/// Mobile exclusivo: menor a 768px.
+@mixin dm-mobile {
+  @media (max-width: $dm-breakpoint-mobile-max) {
+    @content;
+  }
+}
+
+/// Off-canvas: tablet y mobile (menor a 1280px).
+@mixin dm-tablet-down {
+  @media (max-width: $dm-breakpoint-tablet-max) {
+    @content;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Paletas M3 custom
+// -----------------------------------------------------------------------------
+//
+// `mat.theme()` lee los roles primarios, neutros y de error del mapa `primary`,
+// y los roles secundarios de la clave `secondary` dentro de ese mismo mapa. Por
+// eso la paleta secundaria se adjunta a la primaria antes de pasarla al theme.
+// Los tonos canónicos del diseño ocupan los roles que les corresponden:
+//   40 = color base · 90 = contenedor · 10/30 = contenido sobre contenedor.
+
+$dm-primary-palette: (
+  0: #000000,
+  10: #001a38,
+  20: #002f5c,
+  25: #00376a,
+  30: #003463,
+  35: #003a70,
+  40: #0a3b75,
+  50: #1e5bb0,
+  60: #3f7bd0,
+  70: #6e9ee0,
+  80: #a9c8f2,
+  90: #eff6ff,
+  95: #f6faff,
+  98: #fbfdff,
+  99: #fdfeff,
+  100: #ffffff,
+  secondary: (
+    0: #000000,
+    10: #3f0010,
+    20: #63001b,
+    25: #750020,
+    30: #870025,
+    35: #99002a,
+    40: #c8102e,
+    50: #de2b42,
+    60: #f0525f,
+    70: #ff8189,
+    80: #ffb3b8,
+    90: #ffdadb,
+    95: #ffedee,
+    98: #fff8f7,
+    99: #fffbfa,
+    100: #ffffff,
+  ),
+  neutral: (
+    0: #000000,
+    4: #05080f,
+    6: #070b14,
+    10: #0f172a,
+    12: #131b2e,
+    17: #1b2539,
+    20: #1e293b,
+    22: #243047,
+    24: #28344b,
+    25: #2b374e,
+    30: #334155,
+    35: #3f4c61,
+    40: #4b5a70,
+    50: #5b6a80,
+    60: #7a8798,
+    70: #98a4b4,
+    80: #b8c2cf,
+    87: #cdd6e1,
+    90: #e2e8f0,
+    92: #e8edf4,
+    94: #eef2f8,
+    95: #f1f5f9,
+    96: #f4f7fb,
+    98: #f8fafc,
+    99: #fcfdfe,
+    100: #ffffff,
+  ),
+  neutral-variant: (
+    0: #000000,
+    4: #0b0f16,
+    6: #10151d,
+    10: #1b2431,
+    12: #1e2836,
+    17: #26313f,
+    20: #2c3847,
+    22: #303c4b,
+    24: #354150,
+    25: #394655,
+    30: #64748b,
+    35: #6c7686,
+    40: #70747e,
+    50: #737781,
+    60: #8a909b,
+    70: #a5abb5,
+    80: #c3c6d1,
+    87: #d3d6de,
+    90: #e2e8f0,
+    92: #e8edf3,
+    94: #eef1f6,
+    95: #f1f3f7,
+    96: #f4f6f9,
+    98: #f8fafc,
+    99: #fcfcfd,
+    100: #ffffff,
+  ),
+  error: (
+    0: #000000,
+    10: #410002,
+    20: #690005,
+    25: #7e0007,
+    30: #93000a,
+    35: #a80710,
+    40: #ba1a1a,
+    50: #de3730,
+    60: #ff5449,
+    70: #ff897d,
+    80: #ffb4ab,
+    90: #fee2e2,
+    95: #ffedea,
+    98: #fff8f7,
+    99: #fffbff,
+    100: #ffffff,
+  ),
+);
+
+$dm-secondary-palette: map.get($dm-primary-palette, secondary);
+
+$dm-tertiary-palette: (
+  0: #000000,
+  10: #00201c,
+  20: #003730,
+  25: #00443c,
+  30: #005148,
+  35: #006158,
+  40: #0f766e,
+  50: #0d9488,
+  60: #14b8a6,
+  70: #2dd4bf,
+  80: #5eead4,
+  90: #f0fdfa,
+  95: #f7fffe,
+  98: #fcfffe,
+  99: #fdfffe,
+  100: #ffffff,
+);
+
+/// Paleta lista para `mat.theme()`: incorpora los roles secundarios.
+$dm-m3-primary-palette: map.merge(
+  $dm-primary-palette,
+  (
+    secondary: $dm-secondary-palette,
+  )
+);
+
+// -----------------------------------------------------------------------------
+// Emisión de tokens como CSS custom properties (`:root`)
+// -----------------------------------------------------------------------------
+
+@mixin dm-emit-tokens {
+  :root {
+    // --- Color: marca y primario M3 -----------------------------------------
+    --dm-color-primary: #0a3b75;
+    --dm-color-primary-dark: #062349;
+    --dm-color-primary-light: #1e5bb0;
+    --dm-color-primary-container: #eff6ff;
+    --dm-color-on-primary: #ffffff;
+
+    // --- Color: secundario (rojo institucional) -----------------------------
+    --dm-color-secondary: #c8102e;
+    --dm-color-secondary-dark: #a6192e;
+    --dm-color-secondary-container: #fef2f2;
+    --dm-color-on-secondary: #ffffff;
+
+    // --- Color: terciario clínico (teal) ------------------------------------
+    --dm-color-tertiary: #0d9488;
+    --dm-color-tertiary-dark: #115e59;
+    --dm-color-tertiary-text: #0f766e;
+    --dm-color-tertiary-container: #f0fdfa;
+    --dm-color-tertiary-soft: #ccfbf1;
+
+    // --- Color: error -------------------------------------------------------
+    --dm-color-error: #dc2626;
+    --dm-color-error-m3: #ba1a1a;
+    --dm-color-error-container: #fee2e2;
+
+    // --- Color: superficies y texto ----------------------------------------
+    --dm-color-canvas: #f8fafc;
+    --dm-color-surface: #ffffff;
+    --dm-color-border-subtle: #e2e8f0;
+    --dm-color-text: #0f172a;
+    --dm-color-muted: #64748b;
+    --dm-color-outline: #737781;
+    --dm-color-outline-variant: #c3c6d1;
+
+    // --- Color: estados clínicos -------------------------------------------
+    --dm-color-success: #16a34a;
+    --dm-color-success-container: #dcfce7;
+    --dm-color-warning: #d97706;
+    --dm-color-warning-container: #fef3c7;
+    --dm-color-danger: #dc2626;
+    --dm-color-danger-container: #fee2e2;
+    --dm-color-dispensario: #0d9488;
+    --dm-color-dispensario-container: #f0fdfa;
+
+    // --- Chips clínicos (borde 1px al 20% del color de texto) --------------
+    // El texto del chip es un paso más oscuro que el color de estado para
+    // cumplir WCAG AA (≥ 4.5:1) sobre el fondo del chip. Los tokens de estado
+    // (--dm-color-success, -warning, -danger, -dispensario) no cambian.
+    // Ratios medidos: REGISTRADA 4.57:1 · PENDIENTE 4.51:1 · ANULADA 5.30:1 ·
+    // Farmacia 5.25:1. El borde deriva del color de texto (no del de estado),
+    // para que texto y borde compartan la misma familia.
+    --dm-chip-registrada-bg: #dcfce7;
+    --dm-chip-registrada-text: #15803d;
+    --dm-chip-registrada-border: rgba(21, 128, 61, 0.2);
+    --dm-chip-pendiente-bg: #fef3c7;
+    --dm-chip-pendiente-text: #b45309;
+    --dm-chip-pendiente-border: rgba(180, 83, 9, 0.2);
+    --dm-chip-anulada-bg: #fee2e2;
+    --dm-chip-anulada-text: #b91c1c;
+    --dm-chip-anulada-border: rgba(185, 28, 28, 0.2);
+    --dm-chip-farmacia-bg: #f0fdfa;
+    --dm-chip-farmacia-text: #0f766e;
+    --dm-chip-farmacia-border: rgba(15, 118, 110, 0.2);
+
+    // --- Tipografía: familias ----------------------------------------------
+    --dm-font-ui: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --dm-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+
+    // --- Tipografía: 14 pasos (size / weight / line-height / tracking) -----
+    --dm-text-headline-xl-size: 2.25rem; // 36px
+    --dm-text-headline-xl-weight: 700;
+    --dm-text-headline-xl-line-height: 2.75rem; // 44px
+    --dm-text-headline-xl-tracking: -0.02em;
+
+    --dm-text-headline-xl-mobile-size: 1.75rem; // 28px
+    --dm-text-headline-xl-mobile-weight: 700;
+    --dm-text-headline-xl-mobile-line-height: 2.25rem; // 36px
+    --dm-text-headline-xl-mobile-tracking: -0.01em;
+
+    --dm-text-headline-lg-size: 1.875rem; // 30px
+    --dm-text-headline-lg-weight: 600;
+    --dm-text-headline-lg-line-height: 2.375rem; // 38px
+    --dm-text-headline-lg-tracking: -0.015em;
+
+    --dm-text-headline-lg-mobile-size: 1.5rem; // 24px
+    --dm-text-headline-lg-mobile-weight: 600;
+    --dm-text-headline-lg-mobile-line-height: 2rem; // 32px
+    --dm-text-headline-lg-mobile-tracking: -0.01em;
+
+    --dm-text-headline-md-size: 1.375rem; // 22px
+    --dm-text-headline-md-weight: 600;
+    --dm-text-headline-md-line-height: 1.75rem; // 28px
+    --dm-text-headline-md-tracking: 0;
+
+    --dm-text-headline-sm-size: 1.125rem; // 18px
+    --dm-text-headline-sm-weight: 600;
+    --dm-text-headline-sm-line-height: 1.5rem; // 24px
+    --dm-text-headline-sm-tracking: 0;
+
+    --dm-text-title-md-size: 1rem; // 16px
+    --dm-text-title-md-weight: 600;
+    --dm-text-title-md-line-height: 1.375rem; // 22px
+    --dm-text-title-md-tracking: 0;
+
+    --dm-text-title-sm-size: 0.875rem; // 14px
+    --dm-text-title-sm-weight: 600;
+    --dm-text-title-sm-line-height: 1.25rem; // 20px
+    --dm-text-title-sm-tracking: 0;
+
+    --dm-text-body-lg-size: 1rem; // 16px
+    --dm-text-body-lg-weight: 400;
+    --dm-text-body-lg-line-height: 1.5rem; // 24px
+    --dm-text-body-lg-tracking: 0;
+
+    --dm-text-body-md-size: 0.875rem; // 14px
+    --dm-text-body-md-weight: 400;
+    --dm-text-body-md-line-height: 1.25rem; // 20px
+    --dm-text-body-md-tracking: 0;
+
+    --dm-text-body-sm-size: 0.75rem; // 12px
+    --dm-text-body-sm-weight: 400;
+    --dm-text-body-sm-line-height: 1rem; // 16px
+    --dm-text-body-sm-tracking: 0;
+
+    --dm-text-label-lg-size: 0.875rem; // 14px
+    --dm-text-label-lg-weight: 500;
+    --dm-text-label-lg-line-height: 1.25rem; // 20px
+    --dm-text-label-lg-tracking: 0.01em;
+
+    --dm-text-label-md-size: 0.75rem; // 12px
+    --dm-text-label-md-weight: 500;
+    --dm-text-label-md-line-height: 1rem; // 16px
+    --dm-text-label-md-tracking: 0.02em;
+
+    --dm-text-label-sm-size: 0.6875rem; // 11px
+    --dm-text-label-sm-weight: 600;
+    --dm-text-label-sm-line-height: 0.875rem; // 14px
+    --dm-text-label-sm-tracking: 0.04em;
+
+    // --- Spacing ------------------------------------------------------------
+    --dm-space-xxs: 0.125rem; // 2px
+    --dm-space-xs: 0.25rem; // 4px
+    --dm-space-sm: 0.5rem; // 8px
+    --dm-space-md: 1rem; // 16px
+    --dm-space-lg: 1.5rem; // 24px
+    --dm-space-xl: 2rem; // 32px
+    --dm-space-2xl: 3rem; // 48px
+
+    // --- Radios -------------------------------------------------------------
+    --dm-radius-sm: 4px; // inputs y controles
+    --dm-radius-lg: 8px; // cards, tablas y paneles
+    --dm-radius-xl: 12px; // diálogos y flyouts
+    --dm-radius-pill: 9999px; // chips y badges
+
+    // --- Elevación ----------------------------------------------------------
+    --dm-elevation-0: none;
+    --dm-elevation-1: 0 1px 3px 0 rgba(15, 23, 42, 0.05);
+    --dm-elevation-2: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+    --dm-elevation-3:
+      0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+    --dm-scrim: rgba(15, 23, 42, 0.4);
+
+    // --- Layout -------------------------------------------------------------
+    --dm-container-max: 1600px;
+    --dm-sidenav-width: 240px;
+    --dm-sidenav-width-collapsed: 72px;
+    --dm-topbar-height: 64px;
+    --dm-footer-height: 48px;
+    --dm-gutter-desktop: 24px;
+    --dm-margin-desktop: 32px;
+    --dm-gutter-tablet: 16px;
+    --dm-padding-tablet: 24px;
+    --dm-gutter-mobile: 12px;
+    --dm-margin-mobile: 16px;
+    --dm-transition-fast: 150ms ease;
+
+    // --- Foco ---------------------------------------------------------------
+    --dm-focus-ring-width: 2px;
+    --dm-focus-ring-offset: 2px;
+    --dm-focus-ring-color: #1e5bb0;
+    --dm-focus-ring-color-inverse: #ffffff;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Mixins de tipografía
+// -----------------------------------------------------------------------------
+
+$dm-typescale-steps:
+  headline-xl, headline-xl-mobile, headline-lg, headline-lg-mobile, headline-md, headline-sm,
+  title-md, title-sm, body-lg, body-md, body-sm, label-lg, label-md, label-sm;
+
+/// Aplica un paso tipográfico completo consumiendo los custom properties.
+@mixin dm-typescale($step) {
+  font-family: var(--dm-font-ui);
+  font-size: var(--dm-text-#{$step}-size);
+  font-weight: var(--dm-text-#{$step}-weight);
+  line-height: var(--dm-text-#{$step}-line-height);
+  letter-spacing: var(--dm-text-#{$step}-tracking);
+}
+
+/// Cifras tabulares para cédula, carnet, códigos e IDs de visita.
+@mixin dm-tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/// Datos tabulares: JetBrains Mono + cifras tabulares.
+@mixin dm-mono {
+  font-family: var(--dm-font-mono);
+  @include dm-tabular-nums;
+}
+
+/// Oculta visualmente sin retirar el contenido del árbol de accesibilidad.
+@mixin dm-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/// Genera las clases utilitarias `.dm-text-<paso>` y las utilidades de datos.
+@mixin dm-typography-utilities {
+  @each $step in $dm-typescale-steps {
+    .dm-text-#{$step} {
+      @include dm-typescale($step);
+    }
+  }
+
+  .dm-tabular-nums {
+    @include dm-tabular-nums;
+  }
+
+  .dm-mono {
+    @include dm-mono;
+  }
+}

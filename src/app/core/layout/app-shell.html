@@ -1,0 +1,62 @@
+<a class="dm-skip-link" href="#dm-main-content">Saltar al contenido principal</a>
+
+<header class="dm-topbar">
+  <button
+    type="button"
+    class="dm-topbar__toggle"
+    aria-controls="dm-primary-nav"
+    [attr.aria-expanded]="navigationExpanded()"
+    [attr.aria-label]="navigationExpanded() ? 'Ocultar navegación' : 'Mostrar navegación'"
+    (click)="toggleNavigation()"
+  >
+    <mat-icon aria-hidden="true">menu</mat-icon>
+  </button>
+
+  <span class="dm-topbar__brand">Dispensario Médico</span>
+</header>
+
+<div class="dm-shell__body">
+  <nav
+    id="dm-primary-nav"
+    class="dm-sidenav"
+    aria-label="Navegación principal"
+    [class.dm-sidenav--collapsed]="isDesktop() && collapsed()"
+    [class.dm-sidenav--open]="mobileOpen()"
+    [attr.inert]="navigationInert() ? '' : null"
+  >
+    <ul class="dm-nav">
+      <li class="dm-nav__item">
+        <a
+          class="dm-nav__link"
+          routerLink="/"
+          routerLinkActive="dm-nav__link--active"
+          ariaCurrentWhenActive="page"
+          [routerLinkActiveOptions]="{ exact: true }"
+          (click)="closeNavigation()"
+        >
+          <mat-icon aria-hidden="true">home</mat-icon>
+          <span class="dm-nav__label">Inicio</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  @if (backdropVisible()) {
+    <button
+      type="button"
+      class="dm-shell__backdrop"
+      aria-label="Cerrar navegación"
+      (click)="closeNavigation()"
+    ></button>
+  }
+
+  <main id="dm-main-content" class="dm-main" tabindex="-1">
+    <div class="dm-main__inner">
+      <router-outlet />
+    </div>
+  </main>
+</div>
+
+<footer class="dm-footer">
+  <span>Dispensario Médico — Sistema de gestión</span>
+</footer>

@@ -1,39 +1,106 @@
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
+// =============================================================================
+// Estilos globales — Dispensario Médico
+// =============================================================================
+//
+// 1. Tokens propios del producto (`--dm-*`) desde `styles/_tokens.scss`.
+// 2. Tema Material 3 con paletas custom (navy, rojo institucional y teal).
+// 3. Baseline del documento y utilidades globales de tipografía y grilla.
+// =============================================================================
+
 @use '@angular/material' as mat;
+@use './styles/tokens' as dm;
+
+@include dm.dm-emit-tokens;
 
 html {
   height: 100%;
+
   @include mat.theme(
     (
+      // Paletas custom del sistema:
+      //   primary   = ramp derivada de #0A3B75
+      //   secondary = ramp derivada de #C8102E (Material la lee desde la clave
+      //               `secondary` del mapa primario; por eso se adjunta allí)
+      //   tertiary  = ramp derivada de #0D9488
       color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
+          theme-type: light,
+          primary: dm.$dm-m3-primary-palette,
+          tertiary: dm.$dm-tertiary-palette
+        ),
+      typography: (
+        plain-family: (
+          'Inter',
+          'Segoe UI',
+          system-ui,
+          sans-serif,
+        ),
+        brand-family: (
+          'Inter',
+          'Segoe UI',
+          system-ui,
+          sans-serif,
+        ),
+        bold-weight: 700,
+        medium-weight: 500,
+        regular-weight: 400
       ),
-      typography: Roboto,
-      density: 0,
+      density: 0
     )
   );
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
+  // La aplicación clínica es light-only; el modo oscuro no forma parte de esta
+  // entrega y el contraste declarado del sistema asume fondo claro.
   color-scheme: light;
 
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
-
-  // Reset the user agent margin.
   margin: 0;
-  height: 100%;
+  min-height: 100%;
+
+  background-color: var(--dm-color-canvas);
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-/* You can add global styles to this file, and also import other style files */
+
+::selection {
+  background-color: var(--dm-color-primary-container);
+  color: var(--dm-color-primary);
+}
+
+// --- Utilidades de tipografía ------------------------------------------------
+
+@include dm.dm-typography-utilities;
+
+// --- Utilidades de layout ----------------------------------------------------
+
+.dm-container {
+  width: 100%;
+  max-width: var(--dm-container-max);
+  margin-inline: auto;
+}
+
+.dm-grid {
+  display: grid;
+  gap: var(--dm-gutter-mobile);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+
+  @include dm.dm-tablet-up {
+    gap: var(--dm-gutter-tablet);
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  @include dm.dm-desktop {
+    gap: var(--dm-gutter-desktop);
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+}

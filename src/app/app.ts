@@ -1,12 +1,11 @@
-import { Component } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { AppShell } from './core/layout/app-shell';
 
 @Component({
-  imports: [MatIconModule, MatToolbarModule, RouterOutlet],
+  imports: [AppShell],
   selector: 'dm-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {}
