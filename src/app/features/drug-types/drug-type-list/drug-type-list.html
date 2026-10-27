@@ -33,6 +33,22 @@
   </div>
 
   <div class="dm-drug-type-list__table-region" [attr.aria-busy]="loading()">
+    @if (errorMessage(); as errorMessage) {
+      <div class="dm-drug-type-list__error" role="alert">
+        <p class="dm-drug-type-list__error-message">{{ errorMessage }}</p>
+        <button
+          mat-stroked-button
+          type="button"
+          class="dm-drug-type-list__retry"
+          aria-label="Reintentar la carga de tipos de fármacos"
+          [disabled]="loading()"
+          (click)="retry()"
+        >
+          Reintentar
+        </button>
+      </div>
+    }
+
     @if (items().length > 0) {
       <div class="dm-drug-type-list__table-wrap">
         <table
@@ -112,7 +128,7 @@
         aria-label="Paginación de tipos de fármacos"
         (page)="onPage($event)"
       />
-    } @else if (!loading()) {
+    } @else if (!loading() && !errorMessage()) {
       <p class="dm-drug-type-list__empty" role="status">No hay tipos de fármacos para mostrar.</p>
     }
 

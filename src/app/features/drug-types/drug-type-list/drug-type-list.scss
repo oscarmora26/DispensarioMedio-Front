@@ -81,6 +81,34 @@
   @include dm.dm-typescale(body-md);
 }
 
+// Error de carga con reintento (CA-06). Texto del sistema sobre el contenedor
+// de error, nunca el color de error sobre su propio fondo (3.94:1, no cumple
+// AA): mismo patrón que `drug-type-form.scss` y F-006 CA-19. Sin animación
+// propia, sin hex y con el espaciado del sistema.
+.dm-drug-type-list__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--dm-space-md);
+  padding: var(--dm-space-sm) var(--dm-space-md);
+  border-inline-start: 4px solid var(--dm-color-error);
+  border-radius: var(--dm-radius-sm);
+  background-color: var(--dm-color-error-container);
+  color: var(--dm-color-text);
+}
+
+.dm-drug-type-list__error-message {
+  margin: 0;
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-drug-type-list__retry {
+  flex: 0 0 auto;
+}
+
 // En <768px la tabla usa scroll horizontal contenido (docs/DESIGN.md).
 .dm-drug-type-list__table-wrap {
   overflow-x: auto;
@@ -158,6 +186,15 @@
   }
 
   .dm-drug-type-list__new {
+    min-block-size: 44px;
+  }
+
+  .dm-drug-type-list__error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dm-drug-type-list__retry {
     min-block-size: 44px;
   }
 }

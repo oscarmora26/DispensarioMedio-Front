@@ -17,8 +17,11 @@
  *   vive en la región de la tabla y el overlay de carga es absoluto, sin
  *   ocupar altura en flujo (el footer del shell no salta). El buscador
  *   conserva `debounceTime(300)` + `distinctUntilChanged` (un `GET` por gesto).
- * - Avisos en toast: éxitos y errores van a `DrugTypesToast`; queda inline
- *   solo el vacío «No hay tipos de fármacos para mostrar.».
+ * - Avisos en toast: los toasts quedan para las mutaciones (crear, editar,
+ *   activar, desactivar). El fallo de carga del listado **no** va al toast:
+ *   se anuncia inline en la región de la tabla (`role="alert"`) con
+ *   `retry()`, para no duplicar el anuncio (CA-06). El vacío «No hay tipos de
+ *   fármacos para mostrar.» también es inline.
  * - «Nuevo tipo de fármaco» abre el diálogo de creación; «Editar» precarga con
  *   `GET /{id}`; «Desactivar»/«Activar» piden confirmación explícita
  *   (`DELETE` = desactivación lógica; reactivar reenvía el registro con
@@ -129,6 +132,13 @@ export class DrugTypeList implements OnInit {
   /** Carga en curso: solo gobierna la región de la tabla (`aria-busy`). */
   readonly loading = signal(true);
 
+  /**
+   * Error de carga ya traducido (`mapDrugTypesError`), mostrado inline con
+   * reintento (CA-06). Se limpia al arrancar una carga y al tener éxito; no se
+   * duplica en toast.
+   */
+  readonly errorMessage = signal<string | null>(null);
+
   /** Buscador (query param `search`; emite con 300 ms de espera). */
   readonly search = new FormControl('', { nonNullable: true });
 
@@ -159,6 +169,15 @@ export class DrugTypeList implements OnInit {
     } else {
       this.pageIndex.set(event.pageIndex);
     }
+    this.load();
+  }
+
+  /**
+   * Reintento del fallo de carga (CA-06): limpia el error y republica el `GET`
+   * con los criterios vigentes (página, tamaño, búsqueda, estado y orden), sin
+   * volver a la página 1 y sin tocar el foco del buscador.
+   */
+  retry(): void {
     this.load();
   }
 
@@ -280,11 +299,13 @@ export class DrugTypeList implements OnInit {
    * Emite `GET /v1/drug-types` con `page`/`size`/`search`/`is_active`/`sort`
    * como carga incremental (S10): no desmonta header/filtros/paginador,
    * conserva las filas visibles hasta que llega la página nueva y deja el foco
-   * donde esté. Ante error conserva las filas anteriores y avisa en toast; sin
-   * filas previas la región muestra el vacío.
+   * donde esté. Ante error conserva las filas anteriores y publica el mensaje
+   * inline (`errorMessage`, con reintento); sin filas previas la región muestra
+   * el mensaje de error en lugar del vacío (CA-06).
    */
   private load(): void {
     this.loading.set(true);
+    this.errorMessage.set(null);
 
     const status = this.statusFilter.value;
     this.drugTypes
@@ -300,11 +321,12 @@ export class DrugTypeList implements OnInit {
         next: (page) => {
           this.items.set(page.items);
           this.total.set(page.total);
+          this.errorMessage.set(null);
           this.loading.set(false);
         },
         error: (error: unknown) => {
           this.loading.set(false);
-          this.toast.showError(mapDrugTypesError(error).message);
+          this.errorMessage.set(mapDrugTypesError(error).message);
         },
       });
   }
