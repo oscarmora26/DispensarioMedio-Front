@@ -1,5 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Router, provideRouter } from '@angular/router';
+import { environment } from '../../../environments/environment';
+import { AuthService } from '../auth/auth.service';
 import { AppShell } from './app-shell';
 
 /** Breakpoint declarado en `_tokens.scss` (`$dm-breakpoint-desktop`). */
@@ -108,18 +112,34 @@ function pressEscape(): void {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 }
 
+/**
+ * Texto del CSS compilado propio del shell que Angular inyecta en el documento
+ * durante el test (encapsulación emulada → `<style>` en `<head>`). Se filtra
+ * por `.dm-skip-link` para excluir los estilos de Angular Material, que
+ * gestionan su propio foco con reemplazo y quedan fuera del alcance de CA-04.
+ */
+function ownStyleText(): string {
+  return Array.from(document.querySelectorAll('style'))
+    .map((style) => style.textContent ?? '')
+    .filter((css) => css.includes('.dm-skip-link'))
+    .join('\n');
+}
+
 describe('AppShell', () => {
   const originalMatchMedia = window.matchMedia;
 
   beforeEach(async () => {
+    localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [AppShell],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 
   afterEach(() => {
     window.matchMedia = originalMatchMedia;
+    TestBed.inject(HttpTestingController).verify();
+    localStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -399,6 +419,174 @@ describe('AppShell', () => {
 
       expect(enlace.getAttribute('href')).toBe('/');
       expect(enlace.textContent).toContain('Inicio');
+    });
+  });
+
+  describe('bloque de usuario y sesión', () => {
+    const loginUrl = `${environment.apiUrl}/v1/auth/login`;
+
+    function seedSession(username: string, role: string): AuthService {
+      const auth = TestBed.inject(AuthService);
+      const httpMock = TestBed.inject(HttpTestingController);
+
+      auth
+        .login({ email: `${username}@example.test`, password: 'Secreto-sintetico-1' })
+        .subscribe();
+      httpMock.expectOne(loginUrl).flush({
+        access_token: 'token-sintetico-de-prueba',
+        token_type: 'bearer',
+        expires_in: 3600,
+        user: {
+          id: 7,
+          username,
+          email: `${username}@example.test`,
+          role,
+          doctor_id: null,
+        },
+      });
+
+      return auth;
+    }
+
+    it('sin sesión no renderiza el bloque de usuario', () => {
+      const { host } = createShell(true);
+
+      expect(host.querySelector('.dm-user-block')).toBeNull();
+      expect(host.querySelector('.dm-user-block__logout')).toBeNull();
+    });
+
+    it('con sesión ADMIN muestra username y la etiqueta «Administrador»', () => {
+      seedSession('admin.demo', 'ADMIN');
+      const { host } = createShell(true);
+
+      expect(host.querySelector('.dm-user-block__name')?.textContent).toContain('admin.demo');
+      expect(host.querySelector('.dm-user-block__role')?.textContent).toContain('Administrador');
+
+      const logout = query<HTMLButtonElement>(host, '.dm-user-block__logout');
+
+      expect(logout.textContent).toContain('Salir');
+      expect(logout.getAttribute('type')).toBe('button');
+    });
+
+    it('con sesión MEDICO muestra la etiqueta «Médico»', () => {
+      seedSession('medico.demo', 'MEDICO');
+      const { host } = createShell(true);
+
+      expect(host.querySelector('.dm-user-block__name')?.textContent).toContain('medico.demo');
+      expect(host.querySelector('.dm-user-block__role')?.textContent).toContain('Médico');
+    });
+
+    it('un rol no previsto se muestra tal cual (fallback documentado)', () => {
+      seedSession('otro.demo', 'ENFERMERIA');
+      const { host } = createShell(true);
+
+      expect(host.querySelector('.dm-user-block__role')?.textContent).toContain('ENFERMERIA');
+    });
+
+    it('«Salir» limpia la sesión, navega a /login sin returnUrl y oculta el bloque', () => {
+      const auth = seedSession('medico.demo', 'MEDICO');
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      const { fixture, host } = createShell(true);
+
+      expect(host.querySelector('.dm-user-block')).not.toBeNull();
+
+      query<HTMLButtonElement>(host, '.dm-user-block__logout').click();
+      fixture.detectChanges();
+
+      expect(auth.token()).toBeNull();
+      expect(auth.user()).toBeNull();
+      expect(localStorage.getItem('dm.auth.token')).toBeNull();
+      expect(navigateSpy).toHaveBeenCalledWith(['/login'], { replaceUrl: true });
+      expect(host.querySelector('.dm-user-block')).toBeNull();
+
+      TestBed.inject(HttpTestingController).expectNone(loginUrl);
+    });
+
+    it('«Salir» es alcanzable por teclado como botón nativo', () => {
+      seedSession('medico.demo', 'MEDICO');
+      const { host } = createShell(true);
+
+      const logout = query<HTMLButtonElement>(host, '.dm-user-block__logout');
+
+      expect(logout.tagName).toBe('BUTTON');
+      expect(logout.disabled).toBe(false);
+
+      logout.focus();
+
+      expect(document.activeElement).toBe(logout);
+    });
+
+  });
+
+  describe('blindaje de foco (F-003)', () => {
+    it('el CSS compilado acota :focus-visible con :not(.mat-mdc-input-element)', () => {
+      createShell(true);
+
+      expect(ownStyleText()).toContain(':focus-visible:not(.mat-mdc-input-element)');
+    });
+
+    it('skip-link, toggle y enlaces conservan el anillo genérico', () => {
+      const { host, toggle } = createShell(true);
+      const skipLink = query<HTMLAnchorElement>(host, '.dm-skip-link');
+      const navLink = query<HTMLAnchorElement>(host, '.dm-nav__link');
+
+      for (const control of [skipLink, toggle, navLink]) {
+        expect(control.matches(':not(.mat-mdc-input-element)')).toBe(true);
+      }
+    });
+
+    it('«Salir» conserva el anillo genérico', () => {
+      const auth = TestBed.inject(AuthService);
+      const httpMock = TestBed.inject(HttpTestingController);
+
+      auth
+        .login({ email: 'medico.demo@example.test', password: 'Secreto-sintetico-1' })
+        .subscribe();
+      httpMock.expectOne(`${environment.apiUrl}/v1/auth/login`).flush({
+        access_token: 'token-sintetico-de-prueba',
+        token_type: 'bearer',
+        expires_in: 3600,
+        user: {
+          id: 7,
+          username: 'medico.demo',
+          email: 'medico.demo@example.test',
+          role: 'MEDICO',
+          doctor_id: null,
+        },
+      });
+
+      const { host } = createShell(true);
+      const logout = query<HTMLButtonElement>(host, '.dm-user-block__logout');
+
+      expect(logout.matches(':not(.mat-mdc-input-element)')).toBe(true);
+    });
+
+    it('el shell no contiene .mat-mdc-input-element: el blindaje no altera nada visible (PQ-01)', () => {
+      const { host } = createShell(true);
+
+      expect(host.querySelector('.mat-mdc-input-element')).toBeNull();
+    });
+
+    it('el foco por teclado alcanza skip-link, toggle y navegación en orden (CA-05)', () => {
+      const { host, toggle } = createShell(false);
+      const skipLink = query<HTMLAnchorElement>(host, '.dm-skip-link');
+      const navLink = query<HTMLAnchorElement>(host, '.dm-nav__link');
+
+      for (const control of [skipLink, toggle, navLink]) {
+        control.focus();
+        expect(document.activeElement).toBe(control);
+      }
+    });
+
+    it('ningún estilo inyectado elimina el outline sin reemplazo (CA-04)', () => {
+      createShell(true);
+
+      // Patrón construido por partes para no introducir el literal en este
+      // spec y no interferir con el grep de CA-04 sobre las fuentes.
+      const outlineNone = new RegExp(`out${'line'}\\s*:\\s*no${'ne'}`);
+
+      expect(outlineNone.test(ownStyleText())).toBe(false);
     });
   });
 });

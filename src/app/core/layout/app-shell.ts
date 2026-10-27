@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AuthService } from '../auth/auth.service';
 
 /** Breakpoint canónico del layout (coincide con `dm-desktop` en `_tokens.scss`). */
 const DESKTOP_MEDIA_QUERY = '(min-width: 1280px)';
@@ -37,6 +38,7 @@ function createDesktopQuery(): MediaQueryList | null {
 })
 export class AppShell {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly auth = inject(AuthService);
   private readonly desktopQuery = createDesktopQuery();
 
   /** `true` en desktop (≥1280px): drawer persistente y colapsable. */
@@ -57,6 +59,30 @@ export class AppShell {
   readonly navigationInert = computed(() => !this.isDesktop() && !this.mobileOpen());
 
   readonly backdropVisible = computed(() => !this.isDesktop() && this.mobileOpen());
+
+  /** Usuario activo o `null` sin sesión. El shell no conoce HTTP ni almacenamiento. */
+  readonly user = this.auth.user;
+
+  /**
+   * Etiqueta legible del rol (`ADMIN` → «Administrador», `MEDICO` → «Médico»;
+   * un rol no previsto se muestra tal cual, sin lógica de permisos).
+   */
+  readonly roleLabel = computed(() => {
+    const current = this.auth.user();
+    if (!current) {
+      return '';
+    }
+    if (current.role === 'ADMIN') {
+      return 'Administrador';
+    }
+    if (current.role === 'MEDICO') {
+      return 'Médico';
+    }
+    return current.role;
+  });
+
+  /** El ítem «Usuarios» del sidenav solo se renderiza con `role === 'ADMIN'`. */
+  readonly isAdmin = computed(() => this.auth.user()?.role === 'ADMIN');
 
   constructor() {
     const query = this.desktopQuery;
@@ -88,5 +114,10 @@ export class AppShell {
 
   closeNavigation(): void {
     this.mobileOpen.set(false);
+  }
+
+  /** «Salir»: delega el cierre de sesión local en `AuthService`. */
+  logout(): void {
+    this.auth.logout();
   }
 }

@@ -1,63 +1,245 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { environment } from '../environments/environment';
 import { App } from './app';
 import { routes } from './app.routes';
+import { authGuard, guestGuard } from './core/auth/auth.guard';
+import { AuthService } from './core/auth/auth.service';
+import { AppShell } from './core/layout/app-shell';
+
+const LOGIN_URL = `${environment.apiUrl}/v1/auth/login`;
+
+let activeHttpMock: HttpTestingController | null = null;
+
+function loginResponse(username: string, role = 'MEDICO'): Record<string, unknown> {
+  return {
+    access_token: 'token-sintetico-de-prueba',
+    token_type: 'bearer',
+    expires_in: 3600,
+    user: {
+      id: 7,
+      username,
+      email: 'medico.demo@example.test',
+      role,
+      doctor_id: 12,
+    },
+  };
+}
+
+async function configureApp(): Promise<{
+  router: Router;
+  auth: AuthService;
+  httpMock: HttpTestingController;
+}> {
+  await TestBed.configureTestingModule({
+    imports: [App],
+    providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
+  }).compileComponents();
+
+  const httpMock = TestBed.inject(HttpTestingController);
+  activeHttpMock = httpMock;
+
+  return {
+    router: TestBed.inject(Router),
+    auth: TestBed.inject(AuthService),
+    httpMock,
+  };
+}
+
+/** Deja una sesión válida en memoria usando solo el flujo público de login (vía email). */
+function seedSession(
+  auth: AuthService,
+  httpMock: HttpTestingController,
+  username = 'medico.demo',
+  role = 'MEDICO',
+): void {
+  auth.login({ email: `${username}@example.test`, password: 'Secreto-sintetico-1' }).subscribe();
+  httpMock.expectOne(LOGIN_URL).flush(loginResponse(username, role));
+}
+
+function returnUrlOf(url: string): string | null {
+  const query = url.split('?')[1] ?? '';
+
+  return new URLSearchParams(query).get('returnUrl');
+}
 
 describe('App', () => {
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [App],
-      providers: [provideRouter(routes)],
-    }).compileComponents();
+  beforeEach(() => {
+    localStorage.clear();
   });
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
+  afterEach(() => {
+    activeHttpMock?.verify();
+    activeHttpMock = null;
+    localStorage.clear();
   });
 
-  it('renders the dm-app-shell layout', async () => {
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('dm-app-shell')).not.toBeNull();
+  describe('estructura de rutas (CA-01)', () => {
+    it('declara exactamente tres entradas de primer nivel', () => {
+      expect(routes.map((route) => route.path ?? '')).toEqual(['login', '', '**']);
+    });
+
+    it('expone /login como lazy con guestGuard y fuera del shell', () => {
+      const login = routes[0];
+
+      expect(login.path).toBe('login');
+      expect(login.canActivate).toEqual([guestGuard]);
+      expect(typeof login.loadComponent).toBe('function');
+      expect(login.component).toBeUndefined();
+    });
+
+    it('monta el shell en la ruta padre protegida con Home como hija (CA-01)', () => {
+      const root = routes[1];
+
+      expect(root.path).toBe('');
+      expect(root.component).toBe(AppShell);
+      expect(root.canActivate).toEqual([authGuard]);
+      expect(root.children?.length).toBe(1);
+      expect(root.children?.[0].path).toBe('');
+      expect(typeof root.children?.[0].loadComponent).toBe('function');
+    });
+
+    it('redirige ** hacia la raíz', () => {
+      expect(routes[2]).toMatchObject({ path: '**', redirectTo: '' });
+    });
   });
 
-  it('shows the product brand inside the shell topbar landmark', async () => {
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-    const compiled = fixture.nativeElement as HTMLElement;
-    const topbar = compiled.querySelector('dm-app-shell header');
-    expect(topbar?.textContent).toContain('Dispensario Médico');
+  describe('sin sesión', () => {
+    it('renderiza solo el outlet, sin shell en el arranque', async () => {
+      await configureApp();
+      const fixture = TestBed.createComponent(App);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      expect(compiled.querySelector('router-outlet')).not.toBeNull();
+      expect(compiled.querySelector('dm-app-shell')).toBeNull();
+    });
+
+    // Presupuesto ampliado (F-007, solo spec): la primera navegación paga la
+    // transformación del chunk lazy de `/login` y supera por poco los 5000 ms
+    // por defecto bajo workers en paralelo; no es comportamiento de producto.
+    it('navegar a / termina en /login?returnUrl=/ sin instanciar el shell (CA-03)', async () => {
+      const { router } = await configureApp();
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      expect(router.url.startsWith('/login?returnUrl=')).toBe(true);
+      expect(returnUrlOf(router.url)).toBe('/');
+      expect(compiled.querySelector('dm-app-shell')).toBeNull();
+      expect(compiled.querySelector('dm-login')).not.toBeNull();
+    }, 15000);
+
+    it('/login renderiza dm-login y no el shell (CA-05)', async () => {
+      const { router } = await configureApp();
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/login');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      expect(compiled.querySelector('dm-login')).not.toBeNull();
+      expect(compiled.querySelector('dm-app-shell')).toBeNull();
+    });
+
+    it('una ruta desconocida cae al login con returnUrl=/ (CA-02)', async () => {
+      const { router } = await configureApp();
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/ruta-inexistente');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(router.url.startsWith('/login?returnUrl=')).toBe(true);
+      expect(returnUrlOf(router.url)).toBe('/');
+    });
   });
 
-  it('renders the home route inside the shell content area', async () => {
-    const fixture = TestBed.createComponent(App);
-    const router = TestBed.inject(Router);
+  describe('con sesión válida', () => {
+    it("la ruta '' renderiza dm-home con mat-card dentro del shell (CA-02/CA-04)", async () => {
+      const { router, auth, httpMock } = await configureApp();
+      seedSession(auth, httpMock);
+      const fixture = TestBed.createComponent(App);
 
-    await router.navigateByUrl('/');
-    await fixture.whenStable();
-    fixture.detectChanges();
+      await router.navigateByUrl('/');
+      await fixture.whenStable();
+      fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    const home = compiled.querySelector('dm-home');
+      const compiled = fixture.nativeElement as HTMLElement;
+      const home = compiled.querySelector('dm-home');
 
-    expect(router.url).toBe('/');
-    expect(home).not.toBeNull();
-    expect(home?.closest('dm-app-shell')).not.toBeNull();
-    expect(home?.querySelector('mat-card')).not.toBeNull();
+      expect(router.url).toBe('/');
+      expect(home).not.toBeNull();
+      expect(home?.closest('dm-app-shell')).not.toBeNull();
+      expect(home?.querySelector('mat-card')).not.toBeNull();
+    });
+
+    it('la topbar del shell muestra el username de la sesión (CA-06)', async () => {
+      const { router, auth, httpMock } = await configureApp();
+      seedSession(auth, httpMock, 'medico.demo');
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const topbar = (fixture.nativeElement as HTMLElement).querySelector(
+        'dm-app-shell .dm-topbar',
+      );
+
+      expect(topbar?.textContent).toContain('medico.demo');
+    });
+
+    it('/login?returnUrl=/ redirige a / con sesión (CA-05)', async () => {
+      const { router, auth, httpMock } = await configureApp();
+      seedSession(auth, httpMock);
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/login?returnUrl=/');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(router.url).toBe('/');
+      expect((fixture.nativeElement as HTMLElement).querySelector('dm-home')).not.toBeNull();
+    });
+
+    it('/login sin returnUrl redirige a / con sesión (CA-05)', async () => {
+      const { router, auth, httpMock } = await configureApp();
+      seedSession(auth, httpMock);
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/login');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(router.url).toBe('/');
+    });
+
+    it('una ruta desconocida termina en / con Home dentro del shell (CA-02)', async () => {
+      const { router, auth, httpMock } = await configureApp();
+      seedSession(auth, httpMock);
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/ruta-inexistente');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      expect(router.url).toBe('/');
+      expect(compiled.querySelector('dm-home')).not.toBeNull();
+      expect(compiled.querySelector('dm-home')?.closest('dm-app-shell')).not.toBeNull();
+    });
   });
 
-  it('redirects unknown routes to the home route', async () => {
-    const fixture = TestBed.createComponent(App);
-    const router = TestBed.inject(Router);
-
-    await fixture.whenStable();
-    await router.navigateByUrl('/ruta-inexistente');
-    fixture.detectChanges();
-
-    expect(router.url).toBe('/');
-    expect((fixture.nativeElement as HTMLElement).querySelector('dm-home')).not.toBeNull();
-  });
 });

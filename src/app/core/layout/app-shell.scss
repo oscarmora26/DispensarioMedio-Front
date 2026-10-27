@@ -10,10 +10,10 @@
   @include dm.dm-typescale(body-md);
 }
 
-:host :focus-visible {
-  outline: var(--dm-focus-ring-width) solid var(--dm-focus-ring-color);
-  outline-offset: var(--dm-focus-ring-offset);
-}
+// Anillo de foco propio para controles nativos (skip-link, toggle, «Salir»,
+// navegación y `.dm-main`), con el blindaje F-003 preventivo para futuros
+// inputs de Material. Definido en `styles/_tokens.scss`.
+@include dm.dm-focus-ring;
 
 // --- Skip link ---------------------------------------------------------------
 
@@ -89,6 +89,94 @@
   @include dm.dm-typescale(title-md);
 
   letter-spacing: 0.01em;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// --- Bloque de usuario / sesión -----------------------------------------------
+// Alineado a la derecha (`margin-inline-start: auto`), nunca desborda la
+// topbar: nombre y marca se truncan con ellipsis. En ≥768px nombre y rol van
+// en una línea separados por «·»; en <768px el bloque pasa a dos líneas
+// (nombre truncado + rol en `label-sm`) con «Salir» a la derecha.
+
+.dm-user-block {
+  display: flex;
+  align-items: center;
+  gap: var(--dm-space-sm);
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.dm-user-block__info {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dm-space-xs);
+  min-inline-size: 0;
+
+  @include dm.dm-typescale(label-lg);
+}
+
+.dm-user-block__name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-user-block__role {
+  flex: none;
+  white-space: nowrap;
+}
+
+// «Salir» reutiliza el patrón visual del toggle de la topbar: fondo
+// transparente, hover en primario oscuro, texto sobre primario y foco
+// inverso. Alto 44px táctil en mobile, 36px en desktop.
+.dm-user-block__logout {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding-inline: var(--dm-space-sm);
+  border: 0;
+  border-radius: var(--dm-radius-sm);
+  background-color: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color var(--dm-transition-fast);
+
+  @include dm.dm-typescale(label-lg);
+
+  &:hover {
+    background-color: var(--dm-color-primary-dark);
+  }
+
+  &:focus-visible {
+    outline-color: var(--dm-focus-ring-color-inverse);
+  }
+
+  @include dm.dm-tablet-up {
+    min-block-size: 36px;
+  }
+}
+
+@include dm.dm-mobile {
+  .dm-user-block__info {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+  }
+
+  .dm-user-block__separator {
+    display: none;
+  }
+
+  .dm-user-block__role {
+    @include dm.dm-typescale(label-sm);
+  }
 }
 
 // --- Layout ------------------------------------------------------------------
@@ -286,7 +374,8 @@
   .dm-skip-link,
   .dm-sidenav,
   .dm-nav__link,
-  .dm-topbar__toggle {
+  .dm-topbar__toggle,
+  .dm-user-block__logout {
     transition: none;
   }
 

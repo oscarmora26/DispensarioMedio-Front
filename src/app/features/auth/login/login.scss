@@ -1,0 +1,124 @@
+@use '../../../../styles/tokens' as dm;
+
+// --- Página ------------------------------------------------------------------
+// Centrado seguro: la tarjeta se centra con `margin: auto` para que nunca se
+// recorte arriba cuando el contenido supera la altura del viewport.
+
+.dm-login {
+  display: flex;
+  min-block-size: 100dvh;
+  padding: var(--dm-margin-mobile);
+  background-color: var(--dm-color-canvas);
+
+  @include dm.dm-tablet-up {
+    padding: var(--dm-padding-tablet);
+  }
+
+  @include dm.dm-desktop {
+    padding: var(--dm-margin-desktop);
+  }
+}
+
+// Anillo de foco propio para controles nativos (botón, toggle, enlaces);
+// excluye los inputs de Material (F-003). Definido en `styles/_tokens.scss`.
+@include dm.dm-focus-ring;
+
+// --- Tarjeta -----------------------------------------------------------------
+
+.dm-login__card {
+  inline-size: 100%;
+  max-inline-size: 28rem; // 448px: ancho provisional (PA-01)
+  margin: auto;
+  padding: var(--dm-margin-mobile);
+  border: 1px solid var(--dm-color-border-subtle);
+  border-radius: var(--dm-radius-lg);
+  background-color: var(--dm-color-surface);
+  box-shadow: var(--dm-elevation-1);
+
+  @include dm.dm-tablet-up {
+    padding: var(--dm-padding-tablet);
+  }
+
+  @include dm.dm-desktop {
+    padding: var(--dm-margin-desktop);
+  }
+}
+
+.dm-login__title {
+  margin: 0 0 var(--dm-space-xs);
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(headline-lg-mobile);
+
+  @include dm.dm-desktop {
+    @include dm.dm-typescale(headline-lg);
+  }
+}
+
+.dm-login__subtitle {
+  margin: 0 0 var(--dm-space-lg);
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(body-md);
+}
+
+// --- Aviso de sesión expirada -------------------------------------------------
+
+.dm-login__status {
+  margin: 0 0 var(--dm-space-md);
+  padding: var(--dm-space-sm) var(--dm-space-md);
+  border-inline-start: 4px solid var(--dm-color-tertiary-text);
+  border-radius: var(--dm-radius-sm);
+  background-color: var(--dm-color-tertiary-container);
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
+
+// --- Formulario ---------------------------------------------------------------
+
+.dm-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-md);
+}
+
+.dm-login__field {
+  inline-size: 100%;
+}
+
+.dm-login__error {
+  margin: 0;
+  color: var(--dm-color-error);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-login__submit {
+  inline-size: 100%;
+  min-block-size: 44px;
+}
+
+// El toggle mantiene el área táctil mínima de 44px sin enviar el formulario
+// (`type="button"` en el HTML).
+.dm-login__toggle {
+  inline-size: 44px;
+  block-size: 44px;
+}
+
+.dm-login__help {
+  margin: var(--dm-space-lg) 0 0;
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(body-sm);
+}
+
+// --- Movimiento reducido -----------------------------------------------------
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-login__card,
+  .dm-login__submit,
+  .dm-login__toggle {
+    transition: none;
+  }
+}

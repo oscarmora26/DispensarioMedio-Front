@@ -13,6 +13,17 @@
   </button>
 
   <span class="dm-topbar__brand">Dispensario Médico</span>
+
+  @if (user(); as currentUser) {
+    <div class="dm-user-block">
+      <span class="dm-user-block__info">
+        <span class="dm-user-block__name">{{ currentUser.username }}</span>
+        <span class="dm-user-block__separator" aria-hidden="true">·</span>
+        <span class="dm-user-block__role">{{ roleLabel() }}</span>
+      </span>
+      <button type="button" class="dm-user-block__logout" (click)="logout()">Salir</button>
+    </div>
+  }
 </header>
 
 <div class="dm-shell__body">
@@ -38,6 +49,20 @@
           <span class="dm-nav__label">Inicio</span>
         </a>
       </li>
+      @if (isAdmin()) {
+        <li class="dm-nav__item">
+          <a
+            class="dm-nav__link"
+            routerLink="/users"
+            routerLinkActive="dm-nav__link--active"
+            ariaCurrentWhenActive="page"
+            (click)="closeNavigation()"
+          >
+            <mat-icon aria-hidden="true">group</mat-icon>
+            <span class="dm-nav__label">Usuarios</span>
+          </a>
+        </li>
+      }
     </ul>
   </nav>
 
