@@ -20,7 +20,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
-import { debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, forkJoin, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import {
   MedicationConfirmData,
@@ -32,13 +32,13 @@ import {
   MedicationFormResult,
 } from '../medication-form/medication-form';
 import { mapMedicationsError } from '../medications-error';
-import { Medication } from '../medications.models';
-import { CatalogOption } from '../medications.models';
+import { CatalogOption, Medication } from '../medications.models';
 import { MedicationsToast } from '../medications-toast';
 import { MedicationsService } from '../medications.service';
 import { DrugTypesService } from '../../drug-types/drug-types.service';
 import { BrandsService } from '../../brands/brands.service';
 import { LocationsService } from '../../locations/locations.service';
+import { CellOption } from '../../locations/locations.models';
 
 type MedicationStatusFilter = 'all' | 'active' | 'inactive';
 
@@ -102,11 +102,11 @@ export class MedicationList implements OnInit {
   readonly statusFilter = new FormControl<MedicationStatusFilter>('all', { nonNullable: true });
   readonly drugTypeFilter = new FormControl<number | null>(null);
   readonly brandFilter = new FormControl<number | null>(null);
-  readonly locationFilter = new FormControl<number | null>(null);
+  readonly cellFilter = new FormControl<number | null>(null);
 
   readonly drugTypeOptions = signal<CatalogOption[]>([]);
   readonly brandOptions = signal<CatalogOption[]>([]);
-  readonly locationOptions = signal<CatalogOption[]>([]);
+  readonly cellOptions = signal<CellOption[]>([]);
 
   drugTypeLabel(id: number): string {
     return this.drugTypeOptions().find((o) => o.id === id)?.label ?? String(id);
@@ -114,28 +114,32 @@ export class MedicationList implements OnInit {
   brandLabel(id: number): string {
     return this.brandOptions().find((o) => o.id === id)?.label ?? String(id);
   }
-  locationLabel(id: number): string {
-    return this.locationOptions().find((o) => o.id === id)?.label ?? String(id);
+  cellLabel(id: number): string {
+    return this.cellOptions().find((o) => o.id === id)?.label ?? String(id);
   }
 
   ngOnInit(): void {
-    // Cargar catálogos para selects y mapeo de nombres.
+    // Catálogos para selects y mapeo de nombres. Cada fuente se aísla con
+    // `catchError`: si una falla (por ejemplo `/v1/shelves`), las otras dos
+    // conservan sus opciones y el listado de medicamentos nunca se rompe.
+    // Las celdas vienen de `listAllCells()` (`cells.id`), no de un endpoint de
+    // ubicaciones, que no existe en el backend.
     forkJoin({
-      drugTypes: this.drugTypesService.list({ page: 1, size: 100 }),
-      brands: this.brandsService.list({ page: 1, size: 100 }),
-      locations: this.locationsService.list({ page: 1, size: 100 }),
+      drugTypes: this.drugTypesService.list({ page: 1, size: 100 }).pipe(
+        map((page) => page.items.map((item) => ({ id: item.id, label: item.description }))),
+        catchError(() => of<CatalogOption[]>([])),
+      ),
+      brands: this.brandsService.list({ page: 1, size: 100 }).pipe(
+        map((page) => page.items.map((item) => ({ id: item.id, label: item.description }))),
+        catchError(() => of<CatalogOption[]>([])),
+      ),
+      cells: this.locationsService.listAllCells().pipe(catchError(() => of<CellOption[]>([]))),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ drugTypes, brands, locations }) => {
-          this.drugTypeOptions.set(
-            drugTypes.items.map((d) => ({ id: d.id, label: d.description })),
-          );
-          this.brandOptions.set(brands.items.map((b) => ({ id: b.id, label: b.description })));
-          this.locationOptions.set(
-            locations.items.map((l) => ({ id: l.id, label: l.description })),
-          );
-        },
+      .subscribe(({ drugTypes, brands, cells }) => {
+        this.drugTypeOptions.set(drugTypes);
+        this.brandOptions.set(brands);
+        this.cellOptions.set(cells);
       });
 
     this.load();
@@ -159,7 +163,7 @@ export class MedicationList implements OnInit {
       this.pageIndex.set(0);
       this.load();
     });
-    this.locationFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+    this.cellFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.pageIndex.set(0);
       this.load();
     });
@@ -285,7 +289,7 @@ export class MedicationList implements OnInit {
         isActive: status === 'all' ? undefined : status === 'active',
         drugTypeId: this.drugTypeFilter.value ?? undefined,
         brandId: this.brandFilter.value ?? undefined,
-        locationId: this.locationFilter.value ?? undefined,
+        cellId: this.cellFilter.value ?? undefined,
         sort: this.sortParam(),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))

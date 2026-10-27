@@ -8,7 +8,8 @@ export interface MedicationsFieldErrors {
   description?: string;
   drugTypeId?: string;
   brandId?: string;
-  locationId?: string;
+  /** `cell_id` en el contrato (422 `errors[].field`). */
+  cellId?: string;
   dose?: string;
 }
 
@@ -73,8 +74,8 @@ function mapValidationError(error: HttpErrorResponse): MedicationsErrorMessage {
       fieldErrors.drugTypeId = 'Selecciona un tipo válido';
     else if (field === 'brand_id' && fieldErrors.brandId === undefined)
       fieldErrors.brandId = 'Selecciona una marca válida';
-    else if (field === 'location_id' && fieldErrors.locationId === undefined)
-      fieldErrors.locationId = 'Selecciona una ubicación válida';
+    else if (field === 'cell_id' && fieldErrors.cellId === undefined)
+      fieldErrors.cellId = 'Selecciona una ubicación válida';
     else if (field === 'dose' && fieldErrors.dose === undefined)
       fieldErrors.dose = 'Revisa la dosis';
   }

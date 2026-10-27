@@ -52,7 +52,7 @@ describe('mapMedicationsError (F-012 S8)', () => {
 
     it('404 devuelve el mensaje de recurso inexistente', () => {
       expect(mapMedicationsError(httpError(404, RAW_BODY)).message).toBe(
-        'La medicamento solicitada ya no existe. Actualiza la lista.',
+        'El medicamento solicitado ya no existe. Actualiza la lista.',
       );
     });
 
@@ -77,9 +77,9 @@ describe('mapMedicationsError (F-012 S8)', () => {
     it('devuelve mensaje propio y error de campo en description', () => {
       const mapped = mapMedicationsError(httpError(409, RAW_BODY));
 
-      expect(mapped.message).toBe('Ya existe una medicamento con esa descripción.');
+      expect(mapped.message).toBe('Ya existe un medicamento con esa descripción, marca y dosis.');
       expect(mapped.fieldErrors).toEqual({
-        description: 'Ya existe una medicamento con esa descripción.',
+        description: 'Ya existe un medicamento con esa descripción, marca y dosis.',
       });
     });
   });
@@ -95,6 +95,25 @@ describe('mapMedicationsError (F-012 S8)', () => {
 
       expect(mapped.message).toBe('Revisa los datos ingresados.');
       expect(mapped.fieldErrors).toEqual({ description: 'Revisa la descripción' });
+    });
+
+    it('mapea errors[].field cell_id a cellId con el texto propio de ubicación', () => {
+      const mapped = mapMedicationsError(
+        httpError(422, { errors: [{ field: 'cell_id', message: 'RAW-CELL-LEAK' }] }),
+      );
+
+      expect(mapped.message).toBe('Revisa los datos ingresados.');
+      expect(mapped.fieldErrors).toEqual({ cellId: 'Selecciona una ubicación válida' });
+      expect(JSON.stringify(mapped)).not.toContain('RAW-CELL-LEAK');
+    });
+
+    it('ya no reconoce el campo location_id del contrato viejo', () => {
+      const mapped = mapMedicationsError(
+        httpError(422, { errors: [{ field: 'location_id', message: 'obsoleto' }] }),
+      );
+
+      expect(mapped.message).toBe('Revisa los datos ingresados.');
+      expect(mapped.fieldErrors).toBeUndefined();
     });
 
     it('conserva solo la primera ocurrencia del campo conocido', () => {

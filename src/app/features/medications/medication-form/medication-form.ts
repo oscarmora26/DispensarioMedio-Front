@@ -18,10 +18,11 @@ import { MatSelectModule } from '@angular/material/select';
 import { MedicationsFieldErrors, mapMedicationsError } from '../medications-error';
 import { MedicationsService } from '../medications.service';
 import { CatalogOption } from '../medications.models';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, map, of } from 'rxjs';
 import { DrugTypesService } from '../../drug-types/drug-types.service';
 import { BrandsService } from '../../brands/brands.service';
 import { LocationsService } from '../../locations/locations.service';
+import { CellOption } from '../../locations/locations.models';
 
 const TEXT_MAX_LENGTH = 100;
 
@@ -70,7 +71,7 @@ export class MedicationFormDialog {
 
   readonly drugTypeOptions = signal<CatalogOption[]>([]);
   readonly brandOptions = signal<CatalogOption[]>([]);
-  readonly locationOptions = signal<CatalogOption[]>([]);
+  readonly cellOptions = signal<CellOption[]>([]);
 
   private loadedIsActive = true;
 
@@ -89,8 +90,8 @@ export class MedicationFormDialog {
     brandId: new FormControl<number | null>(null, {
       validators: [Validators.required, this.serverError('brandId')],
     }),
-    locationId: new FormControl<number | null>(null, {
-      validators: [Validators.required, this.serverError('locationId')],
+    cellId: new FormControl<number | null>(null, {
+      validators: [Validators.required, this.serverError('cellId')],
     }),
     dose: new FormControl('', {
       nonNullable: true,
@@ -108,22 +109,25 @@ export class MedicationFormDialog {
     const brandsService = inject(BrandsService);
     const locationsService = inject(LocationsService);
 
+    // Cada catálogo se aísla con `catchError`: si una fuente falla (por ejemplo
+    // `/v1/shelves`), las otras dos conservan sus opciones y el formulario sigue
+    // usable. Las celdas vienen de `listAllCells()` (`cells.id`).
     forkJoin({
-      drugTypes: drugTypesService.list({ page: 1, size: 100 }),
-      brands: brandsService.list({ page: 1, size: 100 }),
-      locations: locationsService.list({ page: 1, size: 100 }),
+      drugTypes: drugTypesService.list({ page: 1, size: 100 }).pipe(
+        map((page) => page.items.map((item) => ({ id: item.id, label: item.description }))),
+        catchError(() => of<CatalogOption[]>([])),
+      ),
+      brands: brandsService.list({ page: 1, size: 100 }).pipe(
+        map((page) => page.items.map((item) => ({ id: item.id, label: item.description }))),
+        catchError(() => of<CatalogOption[]>([])),
+      ),
+      cells: locationsService.listAllCells().pipe(catchError(() => of<CellOption[]>([]))),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ drugTypes, brands, locations }) => {
-          this.drugTypeOptions.set(
-            drugTypes.items.map((d) => ({ id: d.id, label: d.description })),
-          );
-          this.brandOptions.set(brands.items.map((b) => ({ id: b.id, label: b.description })));
-          this.locationOptions.set(
-            locations.items.map((l) => ({ id: l.id, label: l.description })),
-          );
-        },
+      .subscribe(({ drugTypes, brands, cells }) => {
+        this.drugTypeOptions.set(drugTypes);
+        this.brandOptions.set(brands);
+        this.cellOptions.set(cells);
       });
 
     if (this.data.mode === 'edit') {
@@ -148,7 +152,7 @@ export class MedicationFormDialog {
             description: raw.description,
             drugTypeId: raw.drugTypeId!,
             brandId: raw.brandId!,
-            locationId: raw.locationId!,
+            cellId: raw.cellId!,
             dose: raw.dose,
             isActive: raw.isActive,
           })
@@ -156,7 +160,7 @@ export class MedicationFormDialog {
             description: raw.description,
             drugTypeId: raw.drugTypeId!,
             brandId: raw.brandId!,
-            locationId: raw.locationId!,
+            cellId: raw.cellId!,
             dose: raw.dose,
             isActive: this.loadedIsActive,
           });
@@ -183,7 +187,7 @@ export class MedicationFormDialog {
           this.form.controls.description.setValue(medication.description);
           this.form.controls.drugTypeId.setValue(medication.drugTypeId);
           this.form.controls.brandId.setValue(medication.brandId);
-          this.form.controls.locationId.setValue(medication.locationId);
+          this.form.controls.cellId.setValue(medication.cellId);
           this.form.controls.dose.setValue(medication.dose);
           this.loadingMedication.set(false);
         },

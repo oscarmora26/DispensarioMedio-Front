@@ -15,14 +15,47 @@ import { MedicationList } from './medication-list';
 const DRUG_TYPES_URL = `${environment.apiUrl}/v1/medications`;
 const LOGIN_URL = `${environment.apiUrl}/v1/auth/login`;
 
+// `MedicationRead` del backend real: `cell_id` y **sin** `created_at`.
 function medicationDto(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 7,
     description: 'Analgésico',
+    drug_type_id: 1,
+    brand_id: 2,
+    cell_id: 3,
+    dose: '500 mg',
     is_active: true,
-    created_at: '2026-01-01T00:00:00Z',
     ...overrides,
   };
+}
+
+/** Estante del backend (`GET /v1/shelves`) con una celda activa. */
+function shelfDto(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 1,
+    name: 'Estante A',
+    description: null,
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    cells: [
+      {
+        id: 3,
+        shelf_id: 1,
+        section: 'tramo 1',
+        cell: 'celda 3',
+        description: null,
+        is_active: true,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function catalogueUrl(path: string): string {
+  return `${environment.apiUrl}${path}`;
 }
 
 function pageResponse(items: Record<string, unknown>[]): Record<string, unknown> {
@@ -68,10 +101,41 @@ describe('MedicationList (F-012 S1-S10)', () => {
   let toastStub: Record<string, ReturnType<typeof vi.fn>>;
 
   function flushList(items: Record<string, unknown>[]): void {
+    // Flushear catálogos pendientes (solo la primera vez) antes de la página.
+    for (const path of ['/v1/drug-types', '/v1/brands', '/v1/shelves']) {
+      try {
+        httpMock
+          .expectOne((r) => r.url.includes(path) && r.method === 'GET')
+          .flush({ items: [], total: 0, page: 1, size: 100, pages: 1 });
+      } catch {
+        // Ya consumida o no emitida.
+      }
+    }
     httpMock
       .expectOne((request) => request.url === DRUG_TYPES_URL && request.method === 'GET')
       .flush(pageResponse(items));
     fixture.detectChanges();
+  }
+
+  /** Flushea los tres catálogos con los ítems indicados (página única). */
+  function flushCatalogues(
+    catalogues: {
+      drugTypes?: Record<string, unknown>[];
+      brands?: Record<string, unknown>[];
+      shelves?: Record<string, unknown>[];
+    } = {},
+  ): void {
+    const sources: [string, Record<string, unknown>[]][] = [
+      ['/v1/drug-types', catalogues.drugTypes ?? []],
+      ['/v1/brands', catalogues.brands ?? []],
+      ['/v1/shelves', catalogues.shelves ?? []],
+    ];
+
+    for (const [path, items] of sources) {
+      httpMock
+        .expectOne((request) => request.url === catalogueUrl(path) && request.method === 'GET')
+        .flush(pageResponse(items));
+    }
   }
 
   function searchInput(): HTMLInputElement | null {
@@ -114,6 +178,17 @@ describe('MedicationList (F-012 S1-S10)', () => {
 
   afterEach(() => {
     fixture?.nativeElement?.remove?.();
+    // Flushear las peticiones de catálogos (drug-types/brands/shelves) que el
+    // listado dispara al inicializarse, para que no bloqueen verify().
+    for (const path of ['/v1/drug-types', '/v1/brands', '/v1/shelves']) {
+      try {
+        httpMock
+          .expectOne((r) => r.url.includes(path) && r.method === 'GET')
+          .flush({ items: [], total: 0, page: 1, size: 100, pages: 1 });
+      } catch {
+        // Ya consumida o no emitida; se ignora.
+      }
+    }
     httpMock.verify();
     vi.restoreAllMocks();
     vi.useRealTimers();
@@ -131,6 +206,8 @@ describe('MedicationList (F-012 S1-S10)', () => {
       expect(req.request.params.get('size')).toBe('20');
       expect(req.request.params.has('search')).toBe(false);
       expect(req.request.params.has('is_active')).toBe(false);
+      expect(req.request.params.has('cell_id')).toBe(false);
+      expect(req.request.params.has('location_id')).toBe(false);
       req.flush(
         pageResponse([
           medicationDto(),
@@ -233,6 +310,95 @@ describe('MedicationList (F-012 S1-S10)', () => {
         'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.',
       );
       expect(toastStub['showError']).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ubicaciones como celdas y aislamiento de catálogos (S1/S6)', () => {
+    it('la columna «Ubicación» usa las etiquetas de celda de listAllCells()', () => {
+      fixture.detectChanges();
+      flushCatalogues({
+        drugTypes: [{ id: 1, description: 'Antiinflamatorio', is_active: true }],
+        brands: [{ id: 2, description: 'Marca sintética', is_active: true }],
+        shelves: [shelfDto()],
+      });
+      flushList([medicationDto()]);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Estante A · tramo 1 / celda 3');
+      expect(compiled.textContent).toContain('Antiinflamatorio');
+      expect(compiled.textContent).toContain('Marca sintética');
+      // Fuente nueva: las celdas de /v1/shelves. El endpoint de ubicaciones no existe.
+      httpMock.expectNone((request) => request.url.includes('/v1/locations'));
+    });
+
+    it('el filtro «Ubicación» emite cell_id (no location_id) y resetea a la página 1', () => {
+      fixture.detectChanges();
+      flushList([medicationDto()]);
+      component.onPage({ pageIndex: 2, pageSize: 20, length: 60 } as PageEvent);
+      flushList([medicationDto()]);
+      expect(component.pageIndex()).toBe(2);
+
+      component.cellFilter.setValue(3);
+
+      const req = httpMock.expectOne(
+        (request) => request.url === DRUG_TYPES_URL && request.params.get('cell_id') === '3',
+      );
+      expect(req.request.params.has('location_id')).toBe(false);
+      expect(req.request.params.get('page')).toBe('1');
+      expect(component.pageIndex()).toBe(0);
+      req.flush(pageResponse([]));
+    });
+
+    it('si falla /v1/shelves, tipo y marca siguen poblados y la tabla se renderiza', () => {
+      fixture.detectChanges();
+      httpMock
+        .expectOne((r) => r.url === catalogueUrl('/v1/drug-types') && r.method === 'GET')
+        .flush(pageResponse([{ id: 1, description: 'Antiinflamatorio', is_active: true }]));
+      httpMock
+        .expectOne((r) => r.url === catalogueUrl('/v1/brands') && r.method === 'GET')
+        .flush(pageResponse([{ id: 2, description: 'Marca sintética', is_active: true }]));
+      httpMock
+        .expectOne((r) => r.url === catalogueUrl('/v1/shelves') && r.method === 'GET')
+        .flush('caída sintética', { status: 500, statusText: 'Error' });
+
+      flushList([medicationDto()]);
+      fixture.detectChanges();
+
+      expect(component.drugTypeOptions()).toEqual([{ id: 1, label: 'Antiinflamatorio' }]);
+      expect(component.brandOptions()).toEqual([{ id: 2, label: 'Marca sintética' }]);
+      expect(component.cellOptions()).toEqual([]);
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Antiinflamatorio');
+      expect(compiled.textContent).toContain('Marca sintética');
+      expect(compiled.textContent).toContain('Analgésico');
+      // Sin catálogo de celdas la fila no se rompe: muestra el id.
+      expect(compiled.textContent).toContain('3');
+      expect(toastStub['showError']).not.toHaveBeenCalled();
+    });
+
+    it('si falla /v1/drug-types, marca y ubicación siguen poblados', () => {
+      fixture.detectChanges();
+      httpMock
+        .expectOne((r) => r.url === catalogueUrl('/v1/drug-types') && r.method === 'GET')
+        .flush('caída sintética', { status: 500, statusText: 'Error' });
+      httpMock
+        .expectOne((r) => r.url === catalogueUrl('/v1/brands') && r.method === 'GET')
+        .flush(pageResponse([{ id: 2, description: 'Marca sintética', is_active: true }]));
+      httpMock
+        .expectOne((r) => r.url === catalogueUrl('/v1/shelves') && r.method === 'GET')
+        .flush(pageResponse([shelfDto()]));
+
+      flushList([medicationDto()]);
+      fixture.detectChanges();
+
+      expect(component.drugTypeOptions()).toEqual([]);
+      expect(component.brandOptions()).toEqual([{ id: 2, label: 'Marca sintética' }]);
+      expect(component.cellOptions()).toEqual([{ id: 3, label: 'Estante A · tramo 1 / celda 3' }]);
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+        'Estante A · tramo 1 / celda 3',
+      );
     });
   });
 
@@ -789,7 +955,14 @@ describe('MedicationList (F-012 S1-S10)', () => {
 
       const req = httpMock.expectOne(`${DRUG_TYPES_URL}/7`);
       expect(req.request.method).toBe('PUT');
-      expect(req.request.body).toEqual({ description: 'Analgésico', is_active: true });
+      expect(req.request.body).toEqual({
+        description: 'Analgésico',
+        drug_type_id: 1,
+        brand_id: 2,
+        cell_id: 3,
+        dose: '500 mg',
+        is_active: true,
+      });
       req.flush(medicationDto());
       expect(toastStub['showActivated']).toHaveBeenCalledTimes(1);
       flushList([medicationDto()]);
@@ -835,7 +1008,7 @@ describe('MedicationList (F-012 S1-S10)', () => {
 
       expect(toastStub['showError']).toHaveBeenCalledTimes(1);
       expect(toastStub['showError'].mock.calls[0][0]).toBe(
-        'La medicamento solicitada ya no existe. Actualiza la lista.',
+        'El medicamento solicitado ya no existe. Actualiza la lista.',
       );
       flushList([medicationDto()]);
       fixture.detectChanges();

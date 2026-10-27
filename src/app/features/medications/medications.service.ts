@@ -6,7 +6,7 @@
  *   `Authorization: Bearer` la adjunta el `authInterceptor` de F-002; este
  *   servicio no conoce almacenamiento ni el rol del usuario.
  * - `list()` arma los query params (`page` desde 1, `size` 1-100, `search`,
- *   `is_active`, `drug_type_id`, `brand_id`, `location_id`, `sort`) en un único
+ *   `is_active`, `drug_type_id`, `brand_id`, `cell_id`, `sort`) en un único
  *   punto y devuelve la página mapeada a `camelCase`. Sin paginación ni
  *   filtrado en cliente.
  * - `deactivate()` emite `DELETE /{id}` = desactivación lógica (`is_active`,
@@ -56,8 +56,8 @@ export class MedicationsService {
     if (params.brandId !== undefined) {
       query = query.set('brand_id', String(params.brandId));
     }
-    if (params.locationId !== undefined) {
-      query = query.set('location_id', String(params.locationId));
+    if (params.cellId !== undefined) {
+      query = query.set('cell_id', String(params.cellId));
     }
     const sort = params.sort?.trim();
     if (sort) {
@@ -108,7 +108,7 @@ export class MedicationsService {
           description: medication.description,
           drugTypeId: medication.drugTypeId,
           brandId: medication.brandId,
-          locationId: medication.locationId,
+          cellId: medication.cellId,
           dose: medication.dose,
           isActive: true,
         }),

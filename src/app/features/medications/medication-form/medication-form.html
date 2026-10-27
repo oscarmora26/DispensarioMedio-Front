@@ -65,16 +65,16 @@
 
     <mat-form-field class="dm-medication-form__field" appearance="outline">
       <mat-label>Ubicación</mat-label>
-      <mat-select formControlName="locationId" required>
-        @for (option of locationOptions(); track option.id) {
+      <mat-select formControlName="cellId" required>
+        @for (option of cellOptions(); track option.id) {
           <mat-option [value]="option.id">{{ option.label }}</mat-option>
         }
       </mat-select>
       <mat-error>
-        @if (form.controls.locationId.hasError('required')) {
+        @if (form.controls.cellId.hasError('required')) {
           Selecciona una ubicación
-        } @else if (form.controls.locationId.hasError('server')) {
-          {{ fieldErrors().locationId }}
+        } @else if (form.controls.cellId.hasError('server')) {
+          {{ fieldErrors().cellId }}
         }
       </mat-error>
     </mat-form-field>
@@ -131,4 +131,3 @@
     }
   </button>
 </mat-dialog-actions>
-EOF echo "written"

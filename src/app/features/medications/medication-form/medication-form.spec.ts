@@ -7,18 +7,47 @@ import { MedicationFormData, MedicationFormDialog } from './medication-form';
 
 const MEDICATIONS_URL = `${environment.apiUrl}/v1/medications`;
 
+// `MedicationRead` del backend real: `cell_id` y **sin** `created_at`.
 function medicationDto(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 7,
     description: 'Analgésico',
     drug_type_id: 1,
     brand_id: 2,
-    location_id: 3,
+    cell_id: 3,
     dose: '500 mg',
     is_active: true,
-    created_at: '2026-01-01T00:00:00Z',
     ...overrides,
   };
+}
+
+/** Estante del backend (`GET /v1/shelves`) con una celda activa. */
+function shelfDto(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 1,
+    name: 'Estante A',
+    description: null,
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    cells: [
+      {
+        id: 3,
+        shelf_id: 1,
+        section: 'tramo 1',
+        cell: 'celda 3',
+        description: null,
+        is_active: true,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function pageResponse(items: Record<string, unknown>[]): Record<string, unknown> {
+  return { items, total: items.length, page: 1, size: 100, pages: 1 };
 }
 
 async function configure(data: MedicationFormData): Promise<{
@@ -41,6 +70,18 @@ async function configure(data: MedicationFormData): Promise<{
   const httpMock = TestBed.inject(HttpTestingController);
   const fixture = TestBed.createComponent(MedicationFormDialog);
   const component = fixture.componentInstance;
+
+  // Flushear las peticiones de catálogos que el diálogo dispara al construirse,
+  // para que no queden abiertas al verificar en afterEach.
+  for (const path of ['/v1/drug-types', '/v1/brands', '/v1/shelves']) {
+    try {
+      httpMock
+        .expectOne((r) => r.url.includes(path) && r.method === 'GET')
+        .flush({ items: [], total: 0, page: 1, size: 100, pages: 1 });
+    } catch {
+      // Ya fue consumida o no se emitió; se ignora.
+    }
+  }
 
   return { fixture, component, httpMock, dialogRefStub };
 }
@@ -70,7 +111,7 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       component.form.controls.description.setValue(description);
       component.form.controls.drugTypeId.setValue(1);
       component.form.controls.brandId.setValue(2);
-      component.form.controls.locationId.setValue(3);
+      component.form.controls.cellId.setValue(3);
       component.form.controls.dose.setValue('500 mg');
       fixture.detectChanges();
     }
@@ -144,7 +185,14 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
 
       const req = httpMock.expectOne(MEDICATIONS_URL);
       expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual({ description: 'Analgésico', drug_type_id: 1, brand_id: 2, location_id: 3, dose: '500 mg', is_active: true });
+      expect(req.request.body).toEqual({
+        description: 'Analgésico',
+        drug_type_id: 1,
+        brand_id: 2,
+        cell_id: 3,
+        dose: '500 mg',
+        is_active: true,
+      });
       expect(req.request.body).not.toHaveProperty('id');
       expect(req.request.body).not.toHaveProperty('created_at');
 
@@ -159,7 +207,14 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       component.onSubmit();
 
       const req = httpMock.expectOne(MEDICATIONS_URL);
-      expect(req.request.body).toEqual({ description: 'Antibiótico', drug_type_id: 1, brand_id: 2, location_id: 3, dose: '500 mg', is_active: false });
+      expect(req.request.body).toEqual({
+        description: 'Antibiótico',
+        drug_type_id: 1,
+        brand_id: 2,
+        cell_id: 3,
+        dose: '500 mg',
+        is_active: false,
+      });
       req.flush(medicationDto({ description: 'Antibiótico', is_active: false }));
       expect(dialogRefStub.close).toHaveBeenCalledWith('saved');
     });
@@ -191,7 +246,7 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       expect(dialogRefStub.close).not.toHaveBeenCalled();
       expect(component.submitting()).toBe(false);
       expect(component.fieldErrors().description).toBe(
-        'Ya existe una medicamento con esa descripción.',
+        'Ya existe un medicamento con esa descripción, marca y dosis.',
       );
       expect(component.form.controls.description.invalid).toBe(true);
       expect(component.form.controls.description.hasError('server')).toBe(true);
@@ -201,7 +256,7 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
         'alert',
       );
       expect(compiled.querySelector('mat-error')?.textContent).toContain(
-        'Ya existe una medicamento con esa descripción.',
+        'Ya existe un medicamento con esa descripción, marca y dosis.',
       );
     });
 
@@ -243,6 +298,107 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       expect(fixture.nativeElement.textContent).not.toContain('RAW-LEAK');
       expect(component.submitting()).toBe(false);
       expect(dialogRefStub.close).not.toHaveBeenCalled();
+    });
+
+    it('ante 422 con field cell_id marca el select de ubicación con el texto propio (S8)', () => {
+      fillValid();
+      component.onSubmit();
+
+      httpMock
+        .expectOne(MEDICATIONS_URL)
+        .flush(
+          { errors: [{ field: 'cell_id', message: 'RAW-CELL-LEAK' }] },
+          { status: 422, statusText: 'Unprocessable Entity' },
+        );
+      fixture.detectChanges();
+
+      expect(component.fieldErrors().cellId).toBe('Selecciona una ubicación válida');
+      expect(component.form.controls.cellId.hasError('server')).toBe(true);
+      expect(component.form.controls.cellId.invalid).toBe(true);
+      expect(fixture.nativeElement.textContent).toContain('Selecciona una ubicación válida');
+      expect(fixture.nativeElement.textContent).not.toContain('RAW-CELL-LEAK');
+      expect(dialogRefStub.close).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('catálogos relacionados (S2/S6): celdas y aislamiento de fallos', () => {
+    let fixture: ComponentFixture<MedicationFormDialog>;
+    let component: MedicationFormDialog;
+    let httpMock: HttpTestingController;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [MedicationFormDialog],
+        providers: [
+          provideHttpClient(),
+          provideHttpClientTesting(),
+          { provide: MAT_DIALOG_DATA, useValue: { mode: 'create' } as MedicationFormData },
+          { provide: MatDialogRef, useValue: { close: vi.fn() } },
+        ],
+      }).compileComponents();
+
+      httpMock = TestBed.inject(HttpTestingController);
+      fixture = TestBed.createComponent(MedicationFormDialog);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      httpMock.verify();
+    });
+
+    function flushCatalogue(path: string, items: Record<string, unknown>[]): void {
+      httpMock
+        .expectOne((r) => r.url === `${environment.apiUrl}${path}` && r.method === 'GET')
+        .flush(pageResponse(items));
+    }
+
+    it('«Ubicación» se llena con las celdas de listAllCells(), no con /v1/locations (S6)', () => {
+      flushCatalogue('/v1/drug-types', [
+        { id: 1, description: 'Antiinflamatorio', is_active: true },
+      ]);
+      flushCatalogue('/v1/brands', [{ id: 2, description: 'Marca sintética', is_active: true }]);
+      flushCatalogue('/v1/shelves', [shelfDto()]);
+      fixture.detectChanges();
+
+      expect(component.cellOptions()).toEqual([{ id: 3, label: 'Estante A · tramo 1 / celda 3' }]);
+      expect(component.drugTypeOptions()).toEqual([{ id: 1, label: 'Antiinflamatorio' }]);
+      expect(component.brandOptions()).toEqual([{ id: 2, label: 'Marca sintética' }]);
+      httpMock.expectNone((request) => request.url.includes('/v1/locations'));
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('mat-select[formControlName="cellId"]')).not.toBeNull();
+      expect(compiled.textContent).toContain('Ubicación');
+      expect(compiled.textContent).not.toContain('ubicacion_id');
+    });
+
+    it('si falla /v1/shelves, tipo y marca siguen poblados (aislamiento, bug reportado)', () => {
+      flushCatalogue('/v1/drug-types', [
+        { id: 1, description: 'Antiinflamatorio', is_active: true },
+      ]);
+      flushCatalogue('/v1/brands', [{ id: 2, description: 'Marca sintética', is_active: true }]);
+      httpMock
+        .expectOne((r) => r.url === `${environment.apiUrl}/v1/shelves` && r.method === 'GET')
+        .flush('caída sintética', { status: 500, statusText: 'Error' });
+      fixture.detectChanges();
+
+      expect(component.drugTypeOptions()).toEqual([{ id: 1, label: 'Antiinflamatorio' }]);
+      expect(component.brandOptions()).toEqual([{ id: 2, label: 'Marca sintética' }]);
+      expect(component.cellOptions()).toEqual([]);
+    });
+
+    it('si falla /v1/drug-types, marca y ubicación siguen poblados (aislamiento)', () => {
+      httpMock
+        .expectOne((r) => r.url === `${environment.apiUrl}/v1/drug-types` && r.method === 'GET')
+        .flush('caída sintética', { status: 500, statusText: 'Error' });
+      flushCatalogue('/v1/brands', [{ id: 2, description: 'Marca sintética', is_active: true }]);
+      flushCatalogue('/v1/shelves', [shelfDto()]);
+      fixture.detectChanges();
+
+      expect(component.drugTypeOptions()).toEqual([]);
+      expect(component.brandOptions()).toEqual([{ id: 2, label: 'Marca sintética' }]);
+      expect(component.cellOptions()).toEqual([{ id: 3, label: 'Estante A · tramo 1 / celda 3' }]);
     });
   });
 
@@ -299,7 +455,14 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
 
       const req = httpMock.expectOne(`${MEDICATIONS_URL}/7`);
       expect(req.request.method).toBe('PUT');
-      expect(req.request.body).toEqual({ description: 'Antibiótico', drug_type_id: 1, brand_id: 2, location_id: 3, dose: '500 mg', is_active: false });
+      expect(req.request.body).toEqual({
+        description: 'Antibiótico',
+        drug_type_id: 1,
+        brand_id: 2,
+        cell_id: 3,
+        dose: '500 mg',
+        is_active: false,
+      });
       expect(req.request.body).not.toHaveProperty('id');
       expect(req.request.body).not.toHaveProperty('created_at');
 
@@ -315,7 +478,14 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       component.onSubmit();
 
       const req = httpMock.expectOne(`${MEDICATIONS_URL}/7`);
-      expect(req.request.body).toEqual({ description: 'Analgésico', drug_type_id: 1, brand_id: 2, location_id: 3, dose: '500 mg', is_active: true });
+      expect(req.request.body).toEqual({
+        description: 'Analgésico',
+        drug_type_id: 1,
+        brand_id: 2,
+        cell_id: 3,
+        dose: '500 mg',
+        is_active: true,
+      });
       req.flush(medicationDto());
       expect(dialogRefStub.close).toHaveBeenCalledWith('saved');
     });
@@ -402,6 +572,15 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       );
 
       await expect(closed).resolves.toBeUndefined();
+      for (const path of ['/v1/drug-types', '/v1/brands', '/v1/shelves']) {
+        try {
+          httpMock
+            .expectOne((r) => r.url.includes(path) && r.method === 'GET')
+            .flush({ items: [], total: 0, page: 1, size: 100, pages: 1 });
+        } catch {
+          // Ignorar si ya fue consumida.
+        }
+      }
       httpMock.expectNone(MEDICATIONS_URL);
       httpMock.verify();
     });

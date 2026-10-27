@@ -12,16 +12,16 @@ function pageResponse(items: Record<string, unknown>[] = []): Record<string, unk
   return { items, total: items.length, page: 1, size: 20, pages: 1 };
 }
 
+// `MedicationRead` del backend real: `cell_id` y **sin** `created_at`.
 function medicationDto(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 7,
     description: 'Analgésico',
     drug_type_id: 1,
     brand_id: 2,
-    location_id: 3,
+    cell_id: 3,
     dose: '500 mg',
     is_active: true,
-    created_at: '2026-01-01T00:00:00Z',
     ...overrides,
   };
 }
@@ -59,6 +59,8 @@ describe('MedicationsService (F-012)', () => {
       expect(req.request.params.get('size')).toBe('20');
       expect(req.request.params.has('search')).toBe(false);
       expect(req.request.params.has('is_active')).toBe(false);
+      expect(req.request.params.has('cell_id')).toBe(false);
+      expect(req.request.params.has('location_id')).toBe(false);
       expect(req.request.params.has('sort')).toBe(false);
 
       req.flush(pageResponse([medicationDto()]));
@@ -70,10 +72,9 @@ describe('MedicationsService (F-012)', () => {
             description: 'Analgésico',
             drugTypeId: 1,
             brandId: 2,
-            locationId: 3,
+            cellId: 3,
             dose: '500 mg',
             isActive: true,
-            createdAt: '2026-01-01T00:00:00Z',
           },
         ],
         total: 1,
@@ -81,6 +82,16 @@ describe('MedicationsService (F-012)', () => {
         size: 20,
         pages: 1,
       });
+    });
+
+    it('compone el filtro cell_id del contrato nuevo y no envía location_id', () => {
+      service.list({ page: 1, size: 20, cellId: 3 }).subscribe();
+
+      const req = httpMock.expectOne((request) => request.url === MEDICATIONS_URL);
+
+      expect(req.request.params.get('cell_id')).toBe('3');
+      expect(req.request.params.has('location_id')).toBe(false);
+      req.flush(pageResponse());
     });
 
     it('compone search/is_active/sort recortados en un solo punto, con prefijo - descendente', () => {
@@ -126,11 +137,22 @@ describe('MedicationsService (F-012)', () => {
         description: 'Analgésico',
         drugTypeId: 1,
         brandId: 2,
-        locationId: 3,
+        cellId: 3,
         dose: '500 mg',
         isActive: true,
-        createdAt: '2026-01-01T00:00:00Z',
       });
+    });
+
+    it('deja createdAt opcional: la lectura real no envía created_at', () => {
+      let result: Medication | undefined;
+      service.getById(7).subscribe((medication) => {
+        result = medication;
+      });
+
+      httpMock.expectOne(`${MEDICATIONS_URL}/7`).flush(medicationDto());
+
+      expect(result).toBeDefined();
+      expect(result?.createdAt).toBeUndefined();
     });
 
     it('propaga el 404 del servidor sin tragarlo', () => {
@@ -151,39 +173,79 @@ describe('MedicationsService (F-012)', () => {
   });
 
   describe('create (S2)', () => {
-    it('emite POST exacto con trim de description e is_active, sin id ni created_at (201)', () => {
+    it('emite POST exacto con cell_id, trim de description e is_active, sin id ni created_at (201)', () => {
       let result: Medication | undefined;
-      service.create({ description: '  Analgésico  ', drugTypeId: 1, brandId: 2, locationId: 3, dose: '  500 mg  ', isActive: true }).subscribe((medication) => {
-        result = medication;
-      });
+      service
+        .create({
+          description: '  Analgésico  ',
+          drugTypeId: 1,
+          brandId: 2,
+          cellId: 3,
+          dose: '  500 mg  ',
+          isActive: true,
+        })
+        .subscribe((medication) => {
+          result = medication;
+        });
 
       const req = httpMock.expectOne(MEDICATIONS_URL);
 
       expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual({ description: 'Analgésico', drug_type_id: 1, brand_id: 2, location_id: 3, dose: '500 mg', is_active: true });
+      expect(req.request.body).toEqual({
+        description: 'Analgésico',
+        drug_type_id: 1,
+        brand_id: 2,
+        cell_id: 3,
+        dose: '500 mg',
+        is_active: true,
+      });
       expect(req.request.body).not.toHaveProperty('id');
       expect(req.request.body).not.toHaveProperty('created_at');
+      expect(req.request.body).not.toHaveProperty('location_id');
       req.flush(medicationDto(), { status: 201, statusText: 'Created' });
 
       expect(result?.description).toBe('Analgésico');
-      expect(result?.createdAt).toBe('2026-01-01T00:00:00Z');
+      expect(result?.cellId).toBe(3);
     });
 
     it('respeta is_active false cuando el checkbox viene desmarcado (D-5)', () => {
-      service.create({ description: 'Antibiótico', drugTypeId: 1, brandId: 2, locationId: 3, dose: '250 mg', isActive: false }).subscribe();
+      service
+        .create({
+          description: 'Antibiótico',
+          drugTypeId: 1,
+          brandId: 2,
+          cellId: 3,
+          dose: '250 mg',
+          isActive: false,
+        })
+        .subscribe();
 
       const req = httpMock.expectOne(MEDICATIONS_URL);
 
-      expect(req.request.body).toEqual({ description: 'Antibiótico', drug_type_id: 1, brand_id: 2, location_id: 3, dose: '250 mg', is_active: false });
+      expect(req.request.body).toEqual({
+        description: 'Antibiótico',
+        drug_type_id: 1,
+        brand_id: 2,
+        cell_id: 3,
+        dose: '250 mg',
+        is_active: false,
+      });
       req.flush(medicationDto({ is_active: false }));
     });
   });
 
   describe('update (S3)', () => {
-    it('emite PUT de reemplazo completo con trim, sin PATCH, id ni created_at y conserva created_at (200)', () => {
+    it('emite PUT de reemplazo completo con cell_id y trim, sin PATCH, id ni created_at (200)', () => {
       let result: Medication | undefined;
       service
-        .update(7, { description: '  Antibiótico  ', drugTypeId: 1, brandId: 2, locationId: 3, dose: '  250 mg  ', isActive: false })
+        .update(7, {
+          description: '  Antibiótico  ',
+          drugTypeId: 1,
+          brandId: 2,
+          cellId: 3,
+          dose: '  250 mg  ',
+          isActive: false,
+        })
         .subscribe((medication) => {
           result = medication;
         });
@@ -191,20 +253,25 @@ describe('MedicationsService (F-012)', () => {
       const req = httpMock.expectOne(`${MEDICATIONS_URL}/7`);
 
       expect(req.request.method).toBe('PUT');
-      expect(req.request.body).toEqual({ description: 'Antibiótico', drug_type_id: 1, brand_id: 2, location_id: 3, dose: '250 mg', is_active: false });
+      expect(req.request.body).toEqual({
+        description: 'Antibiótico',
+        drug_type_id: 1,
+        brand_id: 2,
+        cell_id: 3,
+        dose: '250 mg',
+        is_active: false,
+      });
       expect(req.request.body).not.toHaveProperty('id');
       expect(req.request.body).not.toHaveProperty('created_at');
-      req.flush(
-        medicationDto({
-          description: 'Antibiótico',
-          is_active: false,
-          created_at: '2025-12-31T00:00:00Z',
-        }),
-        { status: 200, statusText: 'OK' },
-      );
+      expect(req.request.body).not.toHaveProperty('location_id');
+      req.flush(medicationDto({ description: 'Antibiótico', is_active: false }), {
+        status: 200,
+        statusText: 'OK',
+      });
 
-      // El `PUT` no reescribe `created_at`: se conserva el del servidor (S3).
-      expect(result?.createdAt).toBe('2025-12-31T00:00:00Z');
+      // La lectura real no devuelve `created_at`: el modelo lo deja opcional y
+      // ninguna vista lo muestra.
+      expect(result?.createdAt).toBeUndefined();
       expect(result?.description).toBe('Antibiótico');
     });
   });
@@ -234,19 +301,34 @@ describe('MedicationsService (F-012)', () => {
       description: 'Analgésico',
       drugTypeId: 1,
       brandId: 2,
-      locationId: 3,
+      cellId: 3,
       dose: '500 mg',
       isActive: false,
-      createdAt: '2026-01-01T00:00:00Z',
     };
 
     it('emite PUT con el reemplazo completo: description recortada e is_active true', () => {
-      service.reactivate({ ...inactiveMedication, description: '  Analgésico  ', drugTypeId: 1, brandId: 2, locationId: 3, dose: '  500 mg  ' }).subscribe();
+      service
+        .reactivate({
+          ...inactiveMedication,
+          description: '  Analgésico  ',
+          drugTypeId: 1,
+          brandId: 2,
+          cellId: 3,
+          dose: '  500 mg  ',
+        })
+        .subscribe();
 
       const req = httpMock.expectOne(`${MEDICATIONS_URL}/7`);
 
       expect(req.request.method).toBe('PUT');
-      expect(req.request.body).toEqual({ description: 'Analgésico', drug_type_id: 1, brand_id: 2, location_id: 3, dose: '500 mg', is_active: true });
+      expect(req.request.body).toEqual({
+        description: 'Analgésico',
+        drug_type_id: 1,
+        brand_id: 2,
+        cell_id: 3,
+        dose: '500 mg',
+        is_active: true,
+      });
       expect(req.request.body).not.toHaveProperty('id');
       expect(req.request.body).not.toHaveProperty('created_at');
       req.flush(medicationDto());
