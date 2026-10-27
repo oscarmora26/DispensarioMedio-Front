@@ -1,0 +1,64 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar tipo de fármaco' : 'Nuevo tipo de fármaco' }}</h2>
+
+<mat-dialog-content>
+  <form
+    id="dm-drug-type-form"
+    class="dm-drug-type-form__form"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    novalidate
+    [attr.aria-busy]="submitting() || loadingDrugType()"
+  >
+    <mat-form-field class="dm-drug-type-form__field" appearance="outline">
+      <mat-label>Descripción</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="description"
+        autocomplete="off"
+        [attr.maxlength]="maxLength"
+        required
+      />
+      <mat-hint>Entre 1 y {{ maxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.description.hasError('required')) {
+          Ingresa la descripción
+        } @else if (form.controls.description.hasError('maxlength')) {
+          La descripción no debe superar los {{ maxLength }} caracteres.
+        } @else if (form.controls.description.hasError('server')) {
+          {{ fieldErrors().description }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    @if (!isEdit) {
+      <mat-checkbox class="dm-drug-type-form__active" formControlName="isActive">
+        Tipo de fármaco activo
+      </mat-checkbox>
+    }
+
+    @if (loadingDrugType()) {
+      <p class="dm-drug-type-form__loading" role="status">Cargando tipo de fármaco…</p>
+    }
+
+    @if (error()) {
+      <p class="dm-drug-type-form__error" role="alert">{{ error() }}</p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancelar</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="dm-drug-type-form"
+    [disabled]="submitting() || loadingDrugType()"
+  >
+    @if (submitting()) {
+      Guardando…
+    } @else {
+      {{ isEdit ? 'Guardar cambios' : 'Crear tipo de fármaco' }}
+    }
+  </button>
+</mat-dialog-actions>

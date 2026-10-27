@@ -19,6 +19,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/home/home').then((m) => m.Home),
       },
       {
+        path: 'drug-types',
+        loadComponent: () =>
+          import('./features/drug-types/drug-type-list/drug-type-list').then((m) => m.DrugTypeList),
+      },
+      {
         path: 'users',
         canActivate: [adminGuard],
         loadComponent: () => import('./features/users/user-list/user-list').then((m) => m.UserList),

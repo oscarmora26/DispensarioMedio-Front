@@ -51,7 +51,12 @@ export function mapDrugTypesError(error: unknown): DrugTypesErrorMessage {
     case 404:
       return { message: 'El tipo de fármaco solicitado ya no existe. Actualiza la lista.' };
     case 409:
-      return { message: 'Ya existe un tipo de fármaco con esa descripción.' };
+      // S2: el duplicado se marca como error de campo en `description`, no
+      // solo como mensaje general (el diálogo lo muestra bajo el input).
+      return {
+        message: 'Ya existe un tipo de fármaco con esa descripción.',
+        fieldErrors: { description: 'Ya existe un tipo de fármaco con esa descripción.' },
+      };
     case 422:
       return mapValidationError(error);
     default:
