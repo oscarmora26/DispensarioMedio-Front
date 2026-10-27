@@ -14,10 +14,11 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link
-      href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined"
-      rel="stylesheet"
-    />
+    <!-- `mat-icon` aplica por defecto la clase `material-icons`, así que la
+         fuente cargada debe ser Material Icons (la clásica). Cargar Material
+         Symbols sin alias ni `MAT_ICON_DEFAULT_OPTIONS` dejaba las ligaduras
+         como texto literal. -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
   </head>
   <body>
     <dm-root></dm-root>

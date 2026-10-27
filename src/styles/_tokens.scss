@@ -14,9 +14,9 @@
 //   `mat.theme()` y overrides puntuales, nunca redefiniendo `--mat-sys-*`.
 //
 // Este partial no emite CSS al importarse: expone `dm-emit-tokens` (que declara
-// los custom properties en `:root`), los mixins de tipografía y los mixins de
-// breakpoints. Así los componentes pueden importar los mixins sin duplicar el
-// bloque de variables en cada stylesheet encapsulado.
+// los custom properties en `:root`), los mixins de tipografía, el mixin de foco
+// y los mixins de breakpoints. Así los componentes pueden importar los mixins
+// sin duplicar el bloque de variables en cada stylesheet encapsulado.
 // =============================================================================
 
 @use 'sass:map';
@@ -444,6 +444,22 @@ $dm-typescale-steps:
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+}
+
+// -----------------------------------------------------------------------------
+// Mixin de foco
+// -----------------------------------------------------------------------------
+
+/// Anillo de foco propio para controles nativos (botones, toggles, enlaces).
+/// Se excluye `.mat-mdc-input-element`: el `<input>` interior de cada
+/// `mat-form-field appearance="outline"` ya indica el foco con su contorno
+/// con muesca; pintarle además este anillo duplicaba el rectángulo (F-003).
+/// Incluir a nivel raíz del stylesheet del componente (expande `:host`).
+@mixin dm-focus-ring {
+  :host :focus-visible:not(.mat-mdc-input-element) {
+    outline: var(--dm-focus-ring-width) solid var(--dm-focus-ring-color);
+    outline-offset: var(--dm-focus-ring-offset);
+  }
 }
 
 /// Genera las clases utilitarias `.dm-text-<paso>` y las utilidades de datos.
