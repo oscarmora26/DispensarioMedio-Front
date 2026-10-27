@@ -22,10 +22,10 @@ describe('LocationsToast (F-011 S6, patrón F-007)', () => {
 
   describe('éxitos: 2000 ms, polite (role=status), sin acción, center/bottom', () => {
     it.each([
-      ['showCreated', 'Ubicación creada.'],
-      ['showUpdated', 'Ubicación actualizada.'],
-      ['showActivated', 'Ubicación activada.'],
-      ['showDeactivated', 'Ubicación desactivada.'],
+      ['showCreated', 'Estante creado.'],
+      ['showUpdated', 'Estante actualizado.'],
+      ['showActivated', 'Estante activado.'],
+      ['showDeactivated', 'Estante desactivado.'],
     ])('%s anuncia %p sin acción de cierre', (method, message) => {
       (toast[method as keyof LocationsToast] as (message?: string) => void)();
 
@@ -36,6 +36,25 @@ describe('LocationsToast (F-011 S6, patrón F-007)', () => {
         verticalPosition: 'bottom',
         politeness: 'polite',
       });
+    });
+
+    it('los cuatro éxitos nombran al estante y no a la «ubicación» (cambio 1)', () => {
+      toast.showCreated();
+      toast.showUpdated();
+      toast.showActivated();
+      toast.showDeactivated();
+
+      const messages = snackStub.open.mock.calls.map((call) => call[0] as string);
+
+      expect(messages).toEqual([
+        'Estante creado.',
+        'Estante actualizado.',
+        'Estante activado.',
+        'Estante desactivado.',
+      ]);
+      for (const message of messages) {
+        expect(message).not.toContain('Ubicación');
+      }
     });
 
     it('showSuccess genérico usa 2000 ms polite sin acción', () => {

@@ -1,15 +1,15 @@
 <h2 mat-dialog-title>
-  {{ data.activate ? 'Activar ubicación' : 'Desactivar ubicación' }}
+  {{ data.activate ? 'Activar estante' : 'Desactivar estante' }}
 </h2>
 
 <mat-dialog-content>
   <p class="dm-location-confirm__text">
     @if (data.activate) {
-      ¿Activar <strong>{{ data.description }}</strong
-      >? Volverá a estar disponible para las recetas.
+      ¿Activar <strong>{{ data.name }}</strong
+      >? Volverá a estar disponible para asignar medicamentos.
     } @else {
-      ¿Desactivar <strong>{{ data.description }}</strong
-      >? Dejará de estar disponible para las recetas. Esta acción no elimina sus datos.
+      ¿Desactivar <strong>{{ data.name }}</strong
+      >? Dejará de estar disponible para asignar medicamentos.
     }
   </p>
 </mat-dialog-content>

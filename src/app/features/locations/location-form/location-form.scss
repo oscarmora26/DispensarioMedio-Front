@@ -12,6 +12,92 @@
   inline-size: 100%;
 }
 
+// Editor de celdas: `fieldset`/`legend` nativos (sin rol inventado) con el
+// espaciado y los bordes del sistema.
+.dm-location-form__cells {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-sm);
+  margin: 0;
+  padding: var(--dm-space-sm) var(--dm-space-md) var(--dm-space-md);
+  border: 1px solid var(--dm-color-border-subtle);
+  border-radius: var(--dm-radius-sm);
+}
+
+.dm-location-form__cells-title {
+  padding-inline: var(--dm-space-xs);
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(label-md);
+}
+
+.dm-location-form__cells-error {
+  margin: 0;
+  padding: var(--dm-space-sm) var(--dm-space-md);
+  border-inline-start: 4px solid var(--dm-color-error);
+  border-radius: var(--dm-radius-sm);
+  background-color: var(--dm-color-error-container);
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
+
+// Editor en tabla: cabecera y filas comparten una única plantilla de rejilla
+// declarada aquí, así las columnas quedan alineadas sin duplicar valores.
+// Orden de columnas: Tramo · Celda · Descripción · Estado · Eliminar.
+.dm-location-form__cells-grid {
+  --dm-location-form-cells-columns: minmax(6rem, 1fr) minmax(6rem, 1fr) minmax(10rem, 2fr) auto auto;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-xs);
+}
+
+.dm-location-form__cell-head,
+.dm-location-form__cell-row {
+  display: grid;
+  grid-template-columns: var(--dm-location-form-cells-columns);
+  gap: var(--dm-space-sm);
+  align-items: start;
+}
+
+// Cabecera visible de la tabla de celdas: mismo tratamiento que la cabecera
+// del listado (mayúsculas, color atenuado y borde inferior).
+.dm-location-form__cell-head {
+  padding-block-end: var(--dm-space-xs);
+  border-block-end: 2px solid var(--dm-color-border-subtle);
+}
+
+.dm-location-form__cell-heading {
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(label-sm);
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dm-location-form__cell {
+  min-inline-size: 0;
+}
+
+.dm-location-form__cell-field {
+  inline-size: 100%;
+}
+
+.dm-location-form__cell-status,
+.dm-location-form__cell-remove {
+  align-self: center;
+}
+
+.dm-location-form__cell-remove {
+  justify-self: end;
+}
+
+.dm-location-form__add-cell {
+  align-self: flex-start;
+}
+
 .dm-location-form__loading,
 .dm-location-form__error {
   margin: 0;
@@ -31,4 +117,28 @@
   border-radius: var(--dm-radius-sm);
   background-color: var(--dm-color-error-container);
   color: var(--dm-color-text);
+}
+
+// Texto solo para lectores de pantalla (cabecera de la columna de eliminar,
+// que es visualmente vacía).
+.dm-location-form__visually-hidden {
+  @include dm.dm-visually-hidden;
+}
+
+// <768px la fila se apila. Cada campo conserva su `mat-label`, así que la
+// cabecera deja de ser necesaria para identificar el dato.
+@include dm.dm-mobile {
+  .dm-location-form__cell-head {
+    display: none;
+  }
+
+  .dm-location-form__cell-row {
+    grid-template-columns: 1fr;
+    padding-block-end: var(--dm-space-sm);
+    border-block-end: 1px solid var(--dm-color-border-subtle);
+  }
+
+  .dm-location-form__cell-remove {
+    justify-self: end;
+  }
 }

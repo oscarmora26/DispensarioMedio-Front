@@ -4,18 +4,25 @@
  * Todos los textos visibles viven en este módulo. El `detail`, el `code` y el
  * `message` del backend nunca se muestran tal cual (pueden estar en inglés o
  * revelar detalles internos); solo se usan el estado HTTP y —en el caso del
- * `422`— el campo `errors[].field` (`description` en `snake_case`) para elegir
- * el texto correspondiente. Mismo patrón que `users-error.ts`/`auth-error.ts`.
+ * `422`— el campo `errors[].field`, que en el contrato de `/v1/shelves` es
+ * `name` o `description` y en el editor de celdas `cells`. Mismo patrón que
+ * `users-error.ts`.
+ *
+ * Los dos recursos del módulo tienen semántica de `409` distinta:
+ * - `POST/PUT /v1/shelves`: el `name` del estante ya existe.
+ * - `POST/PUT /v1/cells`: la posición `(shelf_id, section, cell)` ya existe.
+ * - `DELETE /v1/cells/{id}`: la celda tiene medicamentos asociados.
+ * Cada uno tiene su propio texto, así que la UI nunca enseña el mensaje de
+ * otro recurso.
  */
 
 import { HttpErrorResponse } from '@angular/common/http';
 
 /** Errores propios bajo cada campo del formulario de ubicaciones. */
 export interface LocationsFieldErrors {
+  name?: string;
   description?: string;
-  shelf?: string;
-  section?: string;
-  cell?: string;
+  cells?: string;
 }
 
 /** Mensaje general más errores opcionales por campo. */
@@ -29,7 +36,31 @@ interface BackendErrorBody {
   errors?: unknown;
 }
 
+/** Texto propio por campo conocido del contrato de estantes. */
+const FIELD_MESSAGES: Record<keyof LocationsFieldErrors, string> = {
+  name: 'Revisa el nombre',
+  description: 'Revisa la descripción',
+  cells: 'Revisa las celdas',
+};
+
 const GENERIC_MESSAGE = 'Ocurrió un error inesperado. Inténtalo de nuevo en unos segundos.';
+
+/** `409` de `POST/PUT /v1/shelves`: el `name` del estante es único. */
+const DUPLICATE_NAME_MESSAGE = 'Ya existe una ubicación con ese nombre.';
+
+/**
+ * `409` de `POST/PUT /v1/cells`: la posición `(shelf_id, section, cell)` ya
+ * existe en el estante (comparación sin distinguir mayúsculas).
+ */
+const DUPLICATE_CELL_MESSAGE = 'Ya existe una celda con ese tramo y celda en el estante.';
+
+/**
+ * `409` de `DELETE /v1/cells/{id}`: la celda tiene medicamentos asociados y el
+ * backend rechaza la baja. Texto no técnico: el `detail` del backend no se
+ * muestra nunca.
+ */
+export const CELL_HAS_MEDICATIONS_MESSAGE =
+  'No se puede eliminar la celda porque tiene medicamentos asociados.';
 
 /**
  * Elige el mensaje de cara al usuario a partir del error HTTP. Nunca incluye
@@ -54,11 +85,11 @@ export function mapLocationsError(error: unknown): LocationsErrorMessage {
     case 404:
       return { message: 'La ubicación solicitada ya no existe. Actualiza la lista.' };
     case 409:
-      // S2: el duplicado se marca como error de campo en `description`, no
-      // solo como mensaje general (el diálogo lo muestra bajo el input).
+      // El duplicado se marca como error de campo en `name`, no solo como
+      // mensaje general (el diálogo lo muestra bajo el input).
       return {
-        message: 'Ya existe una ubicación con esa descripción.',
-        fieldErrors: { description: 'Ya existe una ubicación con esa descripción.' },
+        message: DUPLICATE_NAME_MESSAGE,
+        fieldErrors: { name: DUPLICATE_NAME_MESSAGE },
       };
     case 422:
       return mapValidationError(error);
@@ -68,9 +99,36 @@ export function mapLocationsError(error: unknown): LocationsErrorMessage {
 }
 
 /**
- * `422`: mensaje general más el texto propio del campo conocido
- * (`description`). Los campos desconocidos se ignoran (solo mensaje general)
- * y el `message` del backend no se expone.
+ * Error de escritura de una celda (`POST`/`PUT /v1/cells`). Su `409` significa
+ * «posición duplicada», no «nombre de estante duplicado»: se traduce con su
+ * propio texto y sin marcar el campo `name`. El resto de estados conserva el
+ * mapeo común.
+ */
+export function mapCellWriteError(error: unknown): LocationsErrorMessage {
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    return { message: DUPLICATE_CELL_MESSAGE };
+  }
+
+  return mapLocationsError(error);
+}
+
+/**
+ * Error de `DELETE /v1/cells/{id}`: el `409` es «la celda tiene medicamentos
+ * asociados», un texto propio y no técnico; el resto de estados usa el mapeo
+ * común del módulo.
+ */
+export function mapCellDeleteError(error: unknown): string {
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    return CELL_HAS_MEDICATIONS_MESSAGE;
+  }
+
+  return mapLocationsError(error).message;
+}
+
+/**
+ * `422`: mensaje general más el texto propio de cada campo conocido
+ * (`name`, `description`, `cells`). Los campos desconocidos se ignoran y el
+ * `message` del backend no se expone.
  */
 function mapValidationError(error: HttpErrorResponse): LocationsErrorMessage {
   const message = 'Revisa los datos ingresados.';
@@ -86,16 +144,15 @@ function mapValidationError(error: HttpErrorResponse): LocationsErrorMessage {
       continue;
     }
     const field = (entry as { field?: unknown }).field;
-    if (field === 'description' && fieldErrors.description === undefined) {
-      fieldErrors.description = 'Revisa la descripción';
-    } else if (field === 'shelf' && fieldErrors.shelf === undefined) {
-      fieldErrors.shelf = 'Revisa el estante';
-    } else if (field === 'section' && fieldErrors.section === undefined) {
-      fieldErrors.section = 'Revisa el tramo';
-    } else if (field === 'cell' && fieldErrors.cell === undefined) {
-      fieldErrors.cell = 'Revisa la celda';
+    if (isKnownField(field) && fieldErrors[field] === undefined) {
+      fieldErrors[field] = FIELD_MESSAGES[field];
     }
   }
 
   return Object.keys(fieldErrors).length > 0 ? { message, fieldErrors } : { message };
+}
+
+/** Estrecha `errors[].field` a los campos que el contrato de estantes declara. */
+function isKnownField(field: unknown): field is keyof LocationsFieldErrors {
+  return field === 'name' || field === 'description' || field === 'cells';
 }

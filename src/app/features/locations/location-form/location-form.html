@@ -1,4 +1,4 @@
-<h2 mat-dialog-title>{{ isEdit ? 'Editar ubicación' : 'Nueva ubicación' }}</h2>
+<h2 mat-dialog-title>{{ isEdit ? 'Editar estante' : 'Nuevo estante' }}</h2>
 
 <mat-dialog-content>
   <form
@@ -10,98 +10,174 @@
     [attr.aria-busy]="submitting() || loadingLocation()"
   >
     <mat-form-field class="dm-location-form__field" appearance="outline">
+      <mat-label>Nombre del estante</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="name"
+        autocomplete="off"
+        [attr.maxlength]="nameMaxLength"
+        required
+      />
+      <mat-hint>Entre {{ nameMinLength }} y {{ nameMaxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.name.hasError('required')) {
+          Ingresa el nombre del estante
+        } @else if (form.controls.name.hasError('minlength')) {
+          El nombre debe tener al menos {{ nameMinLength }} caracteres.
+        } @else if (form.controls.name.hasError('maxlength')) {
+          El nombre no debe superar los {{ nameMaxLength }} caracteres.
+        } @else if (form.controls.name.hasError('server')) {
+          {{ fieldErrors().name }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-location-form__field" appearance="outline">
       <mat-label>Descripción</mat-label>
       <input
         matInput
         type="text"
         formControlName="description"
         autocomplete="off"
-        [attr.maxlength]="maxLength"
-        required
+        [attr.maxlength]="descriptionMaxLength"
       />
-      <mat-hint>Entre 1 y {{ maxLength }} caracteres.</mat-hint>
+      <mat-hint>Máximo {{ descriptionMaxLength }} caracteres.</mat-hint>
       <mat-error>
-        @if (form.controls.description.hasError('required')) {
-          Ingresa la descripción
-        } @else if (form.controls.description.hasError('maxlength')) {
-          La descripción no debe superar los {{ maxLength }} caracteres.
+        @if (form.controls.description.hasError('maxlength')) {
+          La descripción no debe superar los {{ descriptionMaxLength }} caracteres.
         } @else if (form.controls.description.hasError('server')) {
           {{ fieldErrors().description }}
         }
       </mat-error>
     </mat-form-field>
 
-    <mat-form-field class="dm-location-form__field" appearance="outline">
-      <mat-label>Estante</mat-label>
-      <input
-        matInput
-        type="text"
-        formControlName="shelf"
-        autocomplete="off"
-        [attr.maxlength]="maxLength"
-        required
-      />
-      <mat-error>
-        @if (form.controls.shelf.hasError('required')) {
-          Ingresa el estante
-        } @else if (form.controls.shelf.hasError('maxlength')) {
-          El estante no debe superar los {{ maxLength }} caracteres.
-        } @else if (form.controls.shelf.hasError('server')) {
-          {{ fieldErrors().shelf }}
-        }
-      </mat-error>
-    </mat-form-field>
+    <fieldset class="dm-location-form__cells" formArrayName="cells">
+      <legend class="dm-location-form__cells-title">Celdas</legend>
 
-    <mat-form-field class="dm-location-form__field" appearance="outline">
-      <mat-label>Tramo</mat-label>
-      <input
-        matInput
-        type="text"
-        formControlName="section"
-        autocomplete="off"
-        [attr.maxlength]="maxLength"
-        required
-      />
-      <mat-error>
-        @if (form.controls.section.hasError('required')) {
-          Ingresa el tramo
-        } @else if (form.controls.section.hasError('maxlength')) {
-          El tramo no debe superar los {{ maxLength }} caracteres.
-        } @else if (form.controls.section.hasError('server')) {
-          {{ fieldErrors().section }}
-        }
-      </mat-error>
-    </mat-form-field>
+      @if (fieldErrors().cells) {
+        <p class="dm-location-form__cells-error">{{ fieldErrors().cells }}</p>
+      }
 
-    <mat-form-field class="dm-location-form__field" appearance="outline">
-      <mat-label>Celda</mat-label>
-      <input
-        matInput
-        type="text"
-        formControlName="cell"
-        autocomplete="off"
-        [attr.maxlength]="maxLength"
-        required
-      />
-      <mat-error>
-        @if (form.controls.cell.hasError('required')) {
-          Ingresa la celda
-        } @else if (form.controls.cell.hasError('maxlength')) {
-          La celda no debe superar los {{ maxLength }} caracteres.
-        } @else if (form.controls.cell.hasError('server')) {
-          {{ fieldErrors().cell }}
+      <!--
+        Editor en formato tabla: una sola fila alineada por celda, con cabecera
+        visible. Cabecera y filas comparten la misma plantilla de rejilla
+        (`--dm-location-form-cells-columns`), así las columnas coinciden.
+      -->
+      <div class="dm-location-form__cells-grid" role="table" aria-label="Celdas del estante">
+        <div class="dm-location-form__cell-head" role="row">
+          <span class="dm-location-form__cell-heading" role="columnheader">Tramo</span>
+          <span class="dm-location-form__cell-heading" role="columnheader">Celda</span>
+          <span class="dm-location-form__cell-heading" role="columnheader">Descripción</span>
+          <span class="dm-location-form__cell-heading" role="columnheader">Estado</span>
+          <span class="dm-location-form__cell-heading" role="columnheader">
+            <span class="dm-location-form__visually-hidden">Eliminar</span>
+          </span>
+        </div>
+
+        @for (group of cells.controls; track group; let i = $index) {
+          <div class="dm-location-form__cell-row" role="row" [formGroupName]="i">
+            <div class="dm-location-form__cell" role="cell">
+              <mat-form-field class="dm-location-form__cell-field" appearance="outline">
+                <mat-label>Tramo</mat-label>
+                <input
+                  matInput
+                  type="text"
+                  formControlName="section"
+                  autocomplete="off"
+                  [attr.maxlength]="cellMaxLength"
+                  required
+                />
+                <mat-error>
+                  @if (group.controls.section.hasError('required')) {
+                    Ingresa el tramo
+                  } @else if (group.controls.section.hasError('maxlength')) {
+                    El tramo no debe superar los {{ cellMaxLength }} caracteres.
+                  }
+                </mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="dm-location-form__cell" role="cell">
+              <mat-form-field class="dm-location-form__cell-field" appearance="outline">
+                <mat-label>Celda</mat-label>
+                <input
+                  matInput
+                  type="text"
+                  formControlName="cell"
+                  autocomplete="off"
+                  [attr.maxlength]="cellMaxLength"
+                  required
+                />
+                <mat-error>
+                  @if (group.controls.cell.hasError('required')) {
+                    Ingresa la celda
+                  } @else if (group.controls.cell.hasError('maxlength')) {
+                    La celda no debe superar los {{ cellMaxLength }} caracteres.
+                  }
+                </mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="dm-location-form__cell" role="cell">
+              <mat-form-field class="dm-location-form__cell-field" appearance="outline">
+                <mat-label>Descripción</mat-label>
+                <input
+                  matInput
+                  type="text"
+                  formControlName="description"
+                  autocomplete="off"
+                  [attr.maxlength]="descriptionMaxLength"
+                />
+                <mat-error>
+                  La descripción no debe superar los {{ descriptionMaxLength }} caracteres.
+                </mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="dm-location-form__cell dm-location-form__cell-status" role="cell">
+              <mat-checkbox class="dm-location-form__cell-active" formControlName="isActive">
+                Activa
+              </mat-checkbox>
+            </div>
+
+            <div class="dm-location-form__cell dm-location-form__cell-remove" role="cell">
+              <button
+                mat-icon-button
+                type="button"
+                class="dm-location-form__remove-cell"
+                [attr.aria-label]="'Eliminar celda ' + (i + 1)"
+                [title]="'Eliminar celda ' + (i + 1)"
+                [disabled]="submitting()"
+                (click)="removeCell(i)"
+              >
+                <mat-icon aria-hidden="true">delete</mat-icon>
+              </button>
+            </div>
+          </div>
         }
-      </mat-error>
-    </mat-form-field>
+      </div>
+
+      <button
+        mat-stroked-button
+        type="button"
+        class="dm-location-form__add-cell"
+        [disabled]="submitting()"
+        (click)="addCell()"
+      >
+        <mat-icon aria-hidden="true">add</mat-icon>
+        Agregar celda
+      </button>
+    </fieldset>
 
     @if (!isEdit) {
       <mat-checkbox class="dm-location-form__active" formControlName="isActive">
-        Ubicación activa
+        Estante activo
       </mat-checkbox>
     }
 
     @if (loadingLocation()) {
-      <p class="dm-location-form__loading" role="status">Cargando ubicación…</p>
+      <p class="dm-location-form__loading" role="status">Cargando estante…</p>
     }
 
     @if (error()) {
@@ -121,7 +197,7 @@
     @if (submitting()) {
       Guardando…
     } @else {
-      {{ isEdit ? 'Guardar cambios' : 'Crear ubicación' }}
+      {{ isEdit ? 'Guardar cambios' : 'Crear estante' }}
     }
   </button>
 </mat-dialog-actions>

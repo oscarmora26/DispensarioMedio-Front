@@ -156,6 +156,25 @@
   @include dm.dm-typescale(body-md);
 }
 
+// Celdas del estante: el texto va en el color del sistema y la cantidad en el
+// color atenuado, sin chips nuevos ni colores literales.
+.dm-location-list__cells {
+  display: inline-flex;
+  gap: var(--dm-space-xs);
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.dm-location-list__cell-count {
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(label-sm);
+}
+
+.dm-location-list__description {
+  color: var(--dm-color-text);
+}
+
 // Estado con los chips AA del sistema (REGISTRADA 4.57:1 / ANULADA 5.30:1).
 .dm-location-list__status-badge {
   display: inline-block;

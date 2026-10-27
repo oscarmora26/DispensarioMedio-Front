@@ -12,18 +12,32 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { LocationsToast } from '../locations-toast';
 import { LocationList } from './location-list';
 
-const LOCATIONS_URL = `${environment.apiUrl}/v1/locations`;
+const SHELVES_URL = `${environment.apiUrl}/v1/shelves`;
 const LOGIN_URL = `${environment.apiUrl}/v1/auth/login`;
 
-function locationDto(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function cellDto(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id: 7,
-    description: 'Analgésico',
-    shelf: 'A',
-    section: '1',
-    cell: '2',
+    id: 11,
+    shelf_id: 7,
+    section: 'A',
+    cell: '1',
+    description: null,
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-02T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function shelfDto(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 7,
+    name: 'Estante A',
+    description: 'Pasillo principal',
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-02T00:00:00Z',
+    cells: [cellDto(), cellDto({ id: 12, section: 'A', cell: '2' })],
     ...overrides,
   };
 }
@@ -63,7 +77,7 @@ function createToastStub(): Record<string, ReturnType<typeof vi.fn>> {
   };
 }
 
-describe('LocationList (F-011 S1-S10)', () => {
+describe('LocationList (F-011 S1-S10, contrato /v1/shelves)', () => {
   let fixture: ComponentFixture<LocationList>;
   let component: LocationList;
   let httpMock: HttpTestingController;
@@ -72,7 +86,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
   function flushList(items: Record<string, unknown>[]): void {
     httpMock
-      .expectOne((request) => request.url === LOCATIONS_URL && request.method === 'GET')
+      .expectOne((request) => request.url === SHELVES_URL && request.method === 'GET')
       .flush(pageResponse(items));
     fixture.detectChanges();
   }
@@ -122,34 +136,71 @@ describe('LocationList (F-011 S1-S10)', () => {
   });
 
   describe('listado base (S1/S6)', () => {
-    it('emite GET page=1&size=20 y muestra descripción/estado/acciones', () => {
+    it('emite GET /v1/shelves con page=1&size=20 y muestra nombre/descripción/celdas/estado/acciones', () => {
       fixture.detectChanges();
 
       const req = httpMock.expectOne(
-        (request) => request.url === LOCATIONS_URL && request.method === 'GET',
+        (request) => request.url === SHELVES_URL && request.method === 'GET',
       );
       expect(req.request.params.get('page')).toBe('1');
       expect(req.request.params.get('size')).toBe('20');
       expect(req.request.params.has('search')).toBe(false);
       expect(req.request.params.has('is_active')).toBe(false);
+      expect(req.request.params.has('sort')).toBe(false);
       req.flush(
         pageResponse([
-          locationDto(),
-          locationDto({ id: 8, description: 'Antibiótico', is_active: false }),
+          shelfDto(),
+          shelfDto({ id: 8, name: 'Estante B', description: null, is_active: false }),
         ]),
       );
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement as HTMLElement;
       expect(compiled.querySelector('table[aria-label="Ubicaciones"]')).not.toBeNull();
-      expect(compiled.textContent).toContain('Analgésico');
-      expect(compiled.textContent).toContain('Antibiótico');
+      expect(compiled.textContent).toContain('Estante A');
+      expect(compiled.textContent).toContain('Pasillo principal');
+      expect(compiled.textContent).toContain('Estante B');
       expect(compiled.textContent).toContain('Activo');
       expect(compiled.textContent).toContain('Inactivo');
       expect(compiled.querySelector('mat-paginator')).not.toBeNull();
-      expect(compiled.querySelector('button[aria-label="Editar Analgésico"]')).not.toBeNull();
-      expect(compiled.querySelector('button[aria-label="Desactivar Analgésico"]')).not.toBeNull();
-      expect(compiled.querySelector('button[aria-label="Activar Antibiótico"]')).not.toBeNull();
+      expect(compiled.querySelector('button[aria-label="Editar Estante A"]')).not.toBeNull();
+      expect(compiled.querySelector('button[aria-label="Desactivar Estante A"]')).not.toBeNull();
+      expect(compiled.querySelector('button[aria-label="Activar Estante B"]')).not.toBeNull();
+    });
+
+    it('la columna Celdas lista las celdas como «tramo / celda» y su cantidad', () => {
+      fixture.detectChanges();
+      flushList([shelfDto(), shelfDto({ id: 8, name: 'Estante B', cells: [] })]);
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const rows = compiled.querySelectorAll('tbody tr');
+
+      expect(rows[0].querySelector('.dm-location-list__cells')?.textContent).toContain(
+        'A / 1 · A / 2',
+      );
+      expect(rows[0].querySelector('.dm-location-list__cell-count')?.textContent).toContain('2');
+      // Un estante sin celdas no inventa contenido ni cantidad.
+      expect(rows[1].querySelector('.dm-location-list__cells')?.textContent).toContain('—');
+      expect(rows[1].querySelector('.dm-location-list__cell-count')).toBeNull();
+    });
+
+    it('la descripción nula del estante se muestra como raya', () => {
+      fixture.detectChanges();
+      flushList([shelfDto({ description: null })]);
+
+      const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr');
+      expect(rows[0].querySelector('.dm-location-list__description')?.textContent).toContain('—');
+    });
+
+    it('solo la columna Nombre es ordenable (mat-sort envía name / -name)', () => {
+      fixture.detectChanges();
+      flushList([shelfDto()]);
+
+      const headerCells = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('th[mat-sort-header]'),
+      );
+      expect(headerCells).toHaveLength(1);
+      expect(headerCells[0].getAttribute('mat-sort-header')).toBe('name');
     });
 
     it('durante la carga inicial el aria-busy vive en la región de la tabla, no en la sección (S10)', () => {
@@ -161,7 +212,9 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(
         compiled.querySelector('.dm-location-list__table-region')?.getAttribute('aria-busy'),
       ).toBe('true');
-      expect(compiled.querySelector('section.dm-location-list')?.getAttribute('aria-busy')).toBeNull();
+      expect(
+        compiled.querySelector('section.dm-location-list')?.getAttribute('aria-busy'),
+      ).toBeNull();
 
       flushList([]);
     });
@@ -172,20 +225,40 @@ describe('LocationList (F-011 S1-S10)', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const empty = compiled.querySelector('.dm-location-list__empty');
-      expect(empty?.textContent).toContain('No hay ubicaciones para mostrar.');
+      expect(empty?.textContent?.trim()).toBe('No hay ubicaciones para mostrar.');
       expect(empty?.getAttribute('role')).toBe('status');
+    });
+
+    it('un 404 del catálogo se muestra como error inline, nunca como vacío (bug reportado)', () => {
+      fixture.detectChanges();
+
+      httpMock
+        .expectOne((request) => request.url === SHELVES_URL && request.method === 'GET')
+        .flush('ausente sintético', { status: 404, statusText: 'Not Found' });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      expect(component.errorMessage()).toBe(
+        'La ubicación solicitada ya no existe. Actualiza la lista.',
+      );
+      expect(compiled.textContent).not.toContain('No hay ubicaciones para mostrar.');
+      expect(compiled.querySelector('.dm-location-list__empty')).toBeNull();
+      expect(
+        compiled.querySelector('.dm-location-list__table-region [role="alert"]')?.textContent,
+      ).toContain('La ubicación solicitada ya no existe. Actualiza la lista.');
     });
 
     it('ante fallo con filas previas conserva las filas y anuncia el error inline sin toast (S6/CA-06)', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       expect(toastStub['showError']).not.toHaveBeenCalled();
 
       component.onPage({ pageIndex: 1, pageSize: 20, length: 45 } as PageEvent);
       fixture.detectChanges();
 
       httpMock
-        .expectOne((request) => request.url === LOCATIONS_URL && request.method === 'GET')
+        .expectOne((request) => request.url === SHELVES_URL && request.method === 'GET')
         .flush('caída sintética', { status: 500, statusText: 'Error' });
       fixture.detectChanges();
 
@@ -200,7 +273,7 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(region?.getAttribute('aria-busy')).toBe('false');
       // Filas anteriores conservadas: sin parpadeo a vacío.
       expect(component.items()).toHaveLength(1);
-      expect(compiled.textContent).toContain('Analgésico');
+      expect(compiled.textContent).toContain('Estante A');
       expect(compiled.querySelector('.dm-location-list__empty')).toBeNull();
       // Error inline dentro de la región, nunca en toast (un solo anuncio).
       expect(region?.querySelector('[role="alert"]')?.textContent).toContain(
@@ -213,7 +286,7 @@ describe('LocationList (F-011 S1-S10)', () => {
       fixture.detectChanges();
 
       httpMock
-        .expectOne((request) => request.url === LOCATIONS_URL && request.method === 'GET')
+        .expectOne((request) => request.url === SHELVES_URL && request.method === 'GET')
         .flush('caída sintética', { status: 0, statusText: 'Unknown Error' });
       fixture.detectChanges();
 
@@ -238,7 +311,7 @@ describe('LocationList (F-011 S1-S10)', () => {
   describe('error de carga con reintento (S6, CA-06)', () => {
     function failLoad(status = 500): void {
       httpMock
-        .expectOne((request) => request.url === LOCATIONS_URL && request.method === 'GET')
+        .expectOne((request) => request.url === SHELVES_URL && request.method === 'GET')
         .flush('caída sintética', { status, statusText: 'Error' });
       fixture.detectChanges();
     }
@@ -266,12 +339,12 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('reintentar reemite GET con los criterios vigentes, sin volver a página 1, y limpia el error al arrancar', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       // Criterios vigentes antes del fallo: página 2 con tamaño 10 (cambiar el
       // tamaño vuelve a página 1, así que primero se ajusta y luego se navega).
       component.onPage({ pageIndex: 0, pageSize: 10, length: 45 } as PageEvent);
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       component.onPage({ pageIndex: 1, pageSize: 10, length: 45 } as PageEvent);
       fixture.detectChanges();
       failLoad();
@@ -292,7 +365,7 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')).toBeNull();
 
       const req = httpMock.expectOne(
-        (request) => request.url === LOCATIONS_URL && request.method === 'GET',
+        (request) => request.url === SHELVES_URL && request.method === 'GET',
       );
       expect(req.request.params.get('page')).toBe('2');
       expect(req.request.params.get('size')).toBe('10');
@@ -300,7 +373,7 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(component.pageIndex()).toBe(1);
       expect(component.pageSize()).toBe(10);
       req.flush({
-        items: [locationDto({ id: 99, description: 'Antihistamínico' })],
+        items: [shelfDto({ id: 99, name: 'Estante Z' })],
         total: 45,
         page: 2,
         size: 10,
@@ -323,8 +396,8 @@ describe('LocationList (F-011 S1-S10)', () => {
       fixture.detectChanges();
 
       httpMock
-        .expectOne((request) => request.url === LOCATIONS_URL && request.method === 'GET')
-        .flush(pageResponse([locationDto({ id: 99, description: 'Antihistamínico' })]));
+        .expectOne((request) => request.url === SHELVES_URL && request.method === 'GET')
+        .flush(pageResponse([shelfDto({ id: 99, name: 'Estante Z' })]));
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement as HTMLElement;
@@ -332,7 +405,7 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(compiled.querySelector('[role="alert"]')).toBeNull();
       expect(compiled.querySelector('.dm-location-list__empty')).toBeNull();
       expect(component.items()).toHaveLength(1);
-      expect(compiled.textContent).toContain('Antihistamínico');
+      expect(compiled.textContent).toContain('Estante Z');
       expect(compiled.querySelector('.dm-location-list__loading')).toBeNull();
     });
 
@@ -343,7 +416,9 @@ describe('LocationList (F-011 S1-S10)', () => {
       const compiled = fixture.nativeElement as HTMLElement;
 
       expect(compiled.querySelectorAll('[role="alert"]')).toHaveLength(1);
-      expect(compiled.querySelector('.dm-location-list__table-region [role="alert"]')).not.toBeNull();
+      expect(
+        compiled.querySelector('.dm-location-list__table-region [role="alert"]'),
+      ).not.toBeNull();
       expect(toastStub['showError']).not.toHaveBeenCalled();
     });
   });
@@ -351,7 +426,7 @@ describe('LocationList (F-011 S1-S10)', () => {
   describe('carga sin parpadeo (S10)', () => {
     it('header, filtros y paginador permanecen montados durante la recarga con foco conservado', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       document.body.appendChild(fixture.nativeElement as HTMLElement);
       fixture.detectChanges();
 
@@ -370,21 +445,21 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(searchInput()).not.toBeNull();
       expect(compiled.querySelector('mat-paginator')).not.toBeNull();
       // Filas anteriores visibles + spinner contenido: sin parpadeo del layout.
-      expect(compiled.textContent).toContain('Analgésico');
+      expect(compiled.textContent).toContain('Estante A');
       expect(compiled.querySelector('[aria-label="Cargando ubicaciones"]')).not.toBeNull();
       expect(
         compiled.querySelector('.dm-location-list__table-region')?.getAttribute('aria-busy'),
       ).toBe('true');
-      expect(compiled.querySelector('section.dm-location-list')?.getAttribute('aria-busy')).toBeNull();
+      expect(
+        compiled.querySelector('section.dm-location-list')?.getAttribute('aria-busy'),
+      ).toBeNull();
       // El foco sigue en el buscador: la recarga no lo roba.
       expect(document.activeElement).toBe(searchInput());
 
       httpMock
-        .expectOne(
-          (request) => request.url === LOCATIONS_URL && request.params.get('page') === '2',
-        )
+        .expectOne((request) => request.url === SHELVES_URL && request.params.get('page') === '2')
         .flush({
-          items: [locationDto({ id: 99, description: 'Antihistamínico' })],
+          items: [shelfDto({ id: 99, name: 'Estante Z' })],
           total: 45,
           page: 2,
           size: 20,
@@ -392,7 +467,7 @@ describe('LocationList (F-011 S1-S10)', () => {
         });
       fixture.detectChanges();
 
-      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Antihistamínico');
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Estante Z');
       expect(component.loading()).toBe(false);
       expect(
         (fixture.nativeElement as HTMLElement)
@@ -404,7 +479,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('header, filtros, región y paginador conservan identidad de nodo durante load()', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       const compiled = fixture.nativeElement as HTMLElement;
       const header = compiled.querySelector('.dm-location-list__header');
@@ -421,11 +496,9 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(compiled.querySelector('mat-paginator')).toBe(paginator);
 
       httpMock
-        .expectOne(
-          (request) => request.url === LOCATIONS_URL && request.params.get('page') === '2',
-        )
+        .expectOne((request) => request.url === SHELVES_URL && request.params.get('page') === '2')
         .flush({
-          items: [locationDto({ id: 99 })],
+          items: [shelfDto({ id: 99 })],
           total: 45,
           page: 2,
           size: 20,
@@ -441,7 +514,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('la carga vive contenida en la región como overlay, con tabla y paginador montados', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       component.onPage({ pageIndex: 1, pageSize: 20, length: 45 } as PageEvent);
       fixture.detectChanges();
@@ -456,17 +529,15 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(region?.contains(loading)).toBe(true);
       expect(compiled.querySelector('table[aria-label="Ubicaciones"]')).not.toBeNull();
       expect(compiled.querySelector('mat-paginator')).not.toBeNull();
-      expect(compiled.textContent).toContain('Analgésico');
+      expect(compiled.textContent).toContain('Estante A');
       // El overlay flota sobre la región: sin altura en flujo ni robo de puntero.
       expect(loading ? getComputedStyle(loading).position : null).toBe('absolute');
       expect(loading ? getComputedStyle(loading).pointerEvents : null).toBe('none');
       expect(region ? getComputedStyle(region).position : null).toBe('relative');
 
       httpMock
-        .expectOne(
-          (request) => request.url === LOCATIONS_URL && request.params.get('page') === '2',
-        )
-        .flush(pageResponse([locationDto({ id: 99 })]));
+        .expectOne((request) => request.url === SHELVES_URL && request.params.get('page') === '2')
+        .flush(pageResponse([shelfDto({ id: 99 })]));
       fixture.detectChanges();
 
       expect(compiled.querySelector('.dm-location-list__loading')).toBeNull();
@@ -474,7 +545,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('el buscador conserva el foco tras el debounce y la respuesta', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       document.body.appendChild(fixture.nativeElement as HTMLElement);
       fixture.detectChanges();
 
@@ -483,11 +554,11 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(document.activeElement).toBe(input);
 
       vi.useFakeTimers();
-      component.search.setValue('ana');
+      component.search.setValue('estante');
       vi.advanceTimersByTime(300);
 
       const req = httpMock.expectOne(
-        (request) => request.url === LOCATIONS_URL && request.params.get('search') === 'ana',
+        (request) => request.url === SHELVES_URL && request.params.get('search') === 'estante',
       );
       req.flush(pageResponse([]));
       fixture.detectChanges();
@@ -500,7 +571,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('filtrar por estado mantiene el foco en el buscador y aria-busy solo en la región', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       document.body.appendChild(fixture.nativeElement as HTMLElement);
       fixture.detectChanges();
 
@@ -514,14 +585,15 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(
         compiled.querySelector('.dm-location-list__table-region')?.getAttribute('aria-busy'),
       ).toBe('true');
-      expect(compiled.querySelector('section.dm-location-list')?.getAttribute('aria-busy')).toBeNull();
+      expect(
+        compiled.querySelector('section.dm-location-list')?.getAttribute('aria-busy'),
+      ).toBeNull();
       expect(compiled.querySelector('.dm-location-list__loading')).not.toBeNull();
       expect(document.activeElement).toBe(searchInput());
 
       httpMock
         .expectOne(
-          (request) =>
-            request.url === LOCATIONS_URL && request.params.get('is_active') === 'false',
+          (request) => request.url === SHELVES_URL && request.params.get('is_active') === 'false',
         )
         .flush(pageResponse([]));
       fixture.detectChanges();
@@ -531,7 +603,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('buscar/filtrar/paginar/ordenar no disparan navegación (S10)', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       const router = TestBed.inject(Router);
       const navigate = vi.spyOn(router, 'navigate');
@@ -541,76 +613,92 @@ describe('LocationList (F-011 S1-S10)', () => {
       component.statusFilter.setValue('active');
       httpMock
         .expectOne(
-          (request) => request.url === LOCATIONS_URL && request.params.get('is_active') === 'true',
+          (request) => request.url === SHELVES_URL && request.params.get('is_active') === 'true',
         )
         .flush(pageResponse([]));
       fixture.detectChanges();
 
       component.onPage({ pageIndex: 1, pageSize: 20, length: 45 } as PageEvent);
       httpMock
-        .expectOne(
-          (request) => request.url === LOCATIONS_URL && request.params.get('page') === '2',
-        )
-        .flush(pageResponse([locationDto({ id: 99 })]));
+        .expectOne((request) => request.url === SHELVES_URL && request.params.get('page') === '2')
+        .flush(pageResponse([shelfDto({ id: 99 })]));
       fixture.detectChanges();
 
-      component.onSort({ active: 'description', direction: 'desc' } as Sort);
+      component.onSort({ active: 'name', direction: 'desc' } as Sort);
       httpMock
         .expectOne(
-          (request) =>
-            request.url === LOCATIONS_URL && request.params.get('sort') === '-description',
+          (request) => request.url === SHELVES_URL && request.params.get('sort') === '-name',
         )
         .flush(pageResponse([]));
       fixture.detectChanges();
 
-      // Filtrar solo emite `GET /v1/locations`: la URL no cambia y no hay
+      // Filtrar solo emite `GET /v1/shelves`: la URL no cambia y no hay
       // navegación (el componente no conoce al router ni toca el shell).
       expect(router.url).toBe(urlBefore);
       expect(navigate).not.toHaveBeenCalled();
       expect(navigateByUrl).not.toHaveBeenCalled();
-      httpMock.expectNone((request) => request.url !== LOCATIONS_URL);
+      httpMock.expectNone((request) => request.url !== SHELVES_URL);
     });
   });
 
   describe('búsqueda, filtros y paginación: un GET por gesto (S1)', () => {
     it('escribir N caracteres con intervalos <300 ms emite una sola GET con el search final', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       vi.useFakeTimers();
-      component.search.setValue('a');
+      component.search.setValue('e');
       vi.advanceTimersByTime(100);
-      component.search.setValue('an');
+      component.search.setValue('es');
       vi.advanceTimersByTime(100);
-      component.search.setValue('ana');
+      component.search.setValue('est');
       httpMock.expectNone(
-        (request) => request.url === LOCATIONS_URL && request.params.get('search') === 'ana',
+        (request) => request.url === SHELVES_URL && request.params.get('search') === 'est',
       );
 
       vi.advanceTimersByTime(300);
 
       const req = httpMock.expectOne(
-        (request) => request.url === LOCATIONS_URL && request.params.get('search') === 'ana',
+        (request) => request.url === SHELVES_URL && request.params.get('search') === 'est',
       );
       expect(req.request.params.get('page')).toBe('1');
       expect(component.pageIndex()).toBe(0);
       req.flush(pageResponse([]));
       fixture.detectChanges();
 
-      httpMock.expectNone((request) => request.url === LOCATIONS_URL && request.method === 'GET');
+      httpMock.expectNone((request) => request.url === SHELVES_URL && request.method === 'GET');
+    });
+
+    it('repetir el mismo término no reemite GET (distinctUntilChanged)', () => {
+      fixture.detectChanges();
+      flushList([shelfDto()]);
+
+      vi.useFakeTimers();
+      component.search.setValue('est');
+      vi.advanceTimersByTime(300);
+      httpMock
+        .expectOne(
+          (request) => request.url === SHELVES_URL && request.params.get('search') === 'est',
+        )
+        .flush(pageResponse([]));
+
+      component.search.setValue('est');
+      vi.advanceTimersByTime(300);
+
+      httpMock.expectNone((request) => request.url === SHELVES_URL);
     });
 
     it('el filtro de estado emite is_active y resetea a la primera página', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       component.onPage({ pageIndex: 2, pageSize: 20, length: 60 } as PageEvent);
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       expect(component.pageIndex()).toBe(2);
 
       component.statusFilter.setValue('inactive');
 
       const req = httpMock.expectOne(
-        (request) => request.url === LOCATIONS_URL && request.params.get('is_active') === 'false',
+        (request) => request.url === SHELVES_URL && request.params.get('is_active') === 'false',
       );
       expect(req.request.params.get('page')).toBe('1');
       expect(component.pageIndex()).toBe(0);
@@ -619,53 +707,52 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('el filtro «Activos» emite is_active=true', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       component.statusFilter.setValue('active');
 
       const req = httpMock.expectOne(
-        (request) => request.url === LOCATIONS_URL && request.params.get('is_active') === 'true',
+        (request) => request.url === SHELVES_URL && request.params.get('is_active') === 'true',
       );
       expect(req.request.params.get('page')).toBe('1');
-      req.flush(pageResponse([locationDto()]));
+      req.flush(pageResponse([shelfDto()]));
     });
 
-    it('el orden emite sort con prefijo descendente y resetea a la primera página', () => {
+    it('el orden por nombre emite sort=-name y resetea a la primera página', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
-      component.onSort({ active: 'description', direction: 'desc' } as Sort);
+      component.onSort({ active: 'name', direction: 'desc' } as Sort);
 
       const req = httpMock.expectOne(
-        (request) =>
-          request.url === LOCATIONS_URL && request.params.get('sort') === '-description',
+        (request) => request.url === SHELVES_URL && request.params.get('sort') === '-name',
       );
       expect(req.request.params.get('page')).toBe('1');
       req.flush(pageResponse([]));
     });
 
-    it('el orden ascendente emite sort sin prefijo', () => {
+    it('el orden ascendente emite sort=name sin prefijo', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
-      component.onSort({ active: 'description', direction: 'asc' } as Sort);
+      component.onSort({ active: 'name', direction: 'asc' } as Sort);
 
       const req = httpMock.expectOne(
-        (request) => request.url === LOCATIONS_URL && request.params.get('sort') === 'description',
+        (request) => request.url === SHELVES_URL && request.params.get('sort') === 'name',
       );
       req.flush(pageResponse([]));
     });
 
     it('cambiar de página emite page+1 del servidor y el total del servidor gobierna el paginador', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       component.onPage({ pageIndex: 1, pageSize: 20, length: 45 } as PageEvent);
 
       const req = httpMock.expectOne(
-        (request) => request.url === LOCATIONS_URL && request.params.get('page') === '2',
+        (request) => request.url === SHELVES_URL && request.params.get('page') === '2',
       );
-      req.flush({ items: [locationDto({ id: 99 })], total: 45, page: 2, size: 20, pages: 3 });
+      req.flush({ items: [shelfDto({ id: 99 })], total: 45, page: 2, size: 20, pages: 3 });
       fixture.detectChanges();
 
       expect(component.total()).toBe(45);
@@ -677,7 +764,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('cambiar el tamaño vuelve a la primera página (máximo 100, opciones 10/20/50)', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       const pageSizeOptions = (component as unknown as { pageSizeOptions: number[] })
         .pageSizeOptions;
@@ -686,7 +773,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
       component.onPage({ pageIndex: 2, pageSize: 50, length: 45 } as PageEvent);
 
-      const req = httpMock.expectOne((request) => request.url === LOCATIONS_URL);
+      const req = httpMock.expectOne((request) => request.url === SHELVES_URL);
       expect(req.request.params.get('page')).toBe('1');
       expect(req.request.params.get('size')).toBe('50');
       req.flush(pageResponse([]));
@@ -697,15 +784,15 @@ describe('LocationList (F-011 S1-S10)', () => {
     it('con MEDICO no existe ningún control de escritura en el DOM (solo lectura)', () => {
       loginAs('MEDICO');
       fixture.detectChanges();
-      flushList([locationDto(), locationDto({ id: 8, description: 'Antibiótico', is_active: false })]);
+      flushList([shelfDto(), shelfDto({ id: 8, name: 'Estante B', is_active: false })]);
 
       const compiled = fixture.nativeElement as HTMLElement;
       // La tabla y las filas siguen visibles (consulta).
       expect(compiled.querySelector('table[aria-label="Ubicaciones"]')).not.toBeNull();
-      expect(compiled.textContent).toContain('Analgésico');
+      expect(compiled.textContent).toContain('Estante A');
       // Cero controles de escritura en el DOM: no es solo deshabilitar.
       expect(compiled.querySelector('.dm-location-list__new')).toBeNull();
-      expect(compiled.textContent).not.toContain('Nuevo ubicación');
+      expect(compiled.textContent).not.toContain('Nuevo estante');
       expect(compiled.textContent).not.toContain('Acciones');
       expect(compiled.querySelector('button[aria-label^="Editar"]')).toBeNull();
       expect(compiled.querySelector('button[aria-label^="Desactivar"]')).toBeNull();
@@ -717,21 +804,21 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('con ADMIN existen el botón de alta y la columna de acciones', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       const compiled = fixture.nativeElement as HTMLElement;
       const newButton = compiled.querySelector('.dm-location-list__new');
-      expect(newButton?.textContent).toContain('Nuevo ubicación');
+      expect(newButton?.textContent).toContain('Nuevo estante');
       expect(compiled.textContent).toContain('Acciones');
-      expect(compiled.querySelector('button[aria-label="Editar Analgésico"]')).not.toBeNull();
-      expect(compiled.querySelector('button[aria-label="Desactivar Analgésico"]')).not.toBeNull();
+      expect(compiled.querySelector('button[aria-label="Editar Estante A"]')).not.toBeNull();
+      expect(compiled.querySelector('button[aria-label="Desactivar Estante A"]')).not.toBeNull();
     });
   });
 
   describe('flujos de escritura con toast (S2/S3/S4/S6)', () => {
-    it('«saved» en creación muestra «Ubicación creada.» y recarga', () => {
+    it('«saved» en creación muestra «Estante creado.» y recarga', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       dialogStub.open.mockReturnValue({ afterClosed: () => of('saved') });
 
       component.openCreate();
@@ -739,12 +826,12 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(dialogStub.open).toHaveBeenCalledTimes(1);
       expect(dialogStub.open.mock.calls[0][1]).toMatchObject({ data: { mode: 'create' } });
       expect(toastStub['showCreated']).toHaveBeenCalledTimes(1);
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
     });
 
-    it('«saved» en edición muestra «Ubicación actualizada.» y recarga', () => {
+    it('«saved» en edición muestra «Estante actualizado.» y recarga', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       dialogStub.open.mockReturnValue({ afterClosed: () => of('saved') });
 
       component.openEdit(component.items()[0]);
@@ -753,72 +840,78 @@ describe('LocationList (F-011 S1-S10)', () => {
         data: { mode: 'edit', locationId: 7 },
       });
       expect(toastStub['showUpdated']).toHaveBeenCalledTimes(1);
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
     });
 
     it('desactivar confirmado emite DELETE y avisa «Ubicación desactivada.»', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       dialogStub.open.mockReturnValue({ afterClosed: () => of(true) });
 
       component.confirmToggleActive(component.items()[0]);
 
-      const req = httpMock.expectOne(`${LOCATIONS_URL}/7`);
+      const req = httpMock.expectOne(`${SHELVES_URL}/7`);
       expect(req.request.method).toBe('DELETE');
-      req.flush(null);
+      req.flush(null, { status: 204, statusText: 'No Content' });
       expect(toastStub['showDeactivated']).toHaveBeenCalledTimes(1);
       flushList([]);
     });
 
-    it('activar confirmado emite PUT de reemplazo completo con is_active true y avisa', () => {
+    it('activar confirmado emite PUT de reemplazo del estante sin celdas y avisa', () => {
       fixture.detectChanges();
-      flushList([locationDto({ is_active: false })]);
+      flushList([shelfDto({ is_active: false })]);
       dialogStub.open.mockReturnValue({ afterClosed: () => of(true) });
 
       component.confirmToggleActive(component.items()[0]);
 
-      const req = httpMock.expectOne(`${LOCATIONS_URL}/7`);
+      const req = httpMock.expectOne(`${SHELVES_URL}/7`);
       expect(req.request.method).toBe('PUT');
-      expect(req.request.body).toEqual({ description: 'Analgésico', shelf: 'A', section: '1', cell: '2', is_active: true });
-      req.flush(locationDto());
+      expect(req.request.body).toEqual({
+        name: 'Estante A',
+        description: 'Pasillo principal',
+        is_active: true,
+      });
+      // Las celdas ya no viajan en el body del estante: tienen su propio CRUD.
+      expect(req.request.body).not.toHaveProperty('cells');
+      req.flush(shelfDto());
       expect(toastStub['showActivated']).toHaveBeenCalledTimes(1);
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
     });
 
-    it('la confirmación de activar/desactivar recibe la descripción y el sentido correctos', () => {
+    it('la confirmación recibe el nombre del estante y el sentido correctos', () => {
       fixture.detectChanges();
-      flushList([locationDto({ is_active: false })]);
+      flushList([shelfDto({ is_active: false })]);
       dialogStub.open.mockReturnValue({ afterClosed: () => of(false) });
 
       component.confirmToggleActive(component.items()[0]);
 
       expect(dialogStub.open.mock.calls[0][1]).toMatchObject({
-        data: { description: 'Analgésico', activate: true },
+        data: { name: 'Estante A', activate: true },
       });
       // Confirmación cancelada: ni DELETE ni PUT ni recarga.
-      httpMock.expectNone(`${LOCATIONS_URL}/7`);
+      httpMock.expectNone(`${SHELVES_URL}/7`);
       expect(toastStub['showActivated']).not.toHaveBeenCalled();
     });
 
     it('fallo al desactivar avisa en toast sin recargar la lista', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       dialogStub.open.mockReturnValue({ afterClosed: () => of(true) });
 
       component.confirmToggleActive(component.items()[0]);
 
       httpMock
-        .expectOne(`${LOCATIONS_URL}/7`)
+        .expectOne(`${SHELVES_URL}/7`)
         .flush('denegado sintético', { status: 403, statusText: 'Forbidden' });
 
       expect(toastStub['showError']).toHaveBeenCalledTimes(1);
       expect(toastStub['showError'].mock.calls[0][0]).toContain('No tienes permiso');
-      httpMock.expectNone((request) => request.url === LOCATIONS_URL && request.method === 'GET');
+      httpMock.expectNone((request) => request.url === SHELVES_URL && request.method === 'GET');
     });
 
     it('404 real de edición ({ notFound: true }) recarga y muestra el toast 404', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       dialogStub.open.mockReturnValue({ afterClosed: () => of({ notFound: true }) });
 
       component.openEdit(component.items()[0]);
@@ -827,7 +920,7 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(toastStub['showError'].mock.calls[0][0]).toBe(
         'La ubicación solicitada ya no existe. Actualiza la lista.',
       );
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       fixture.detectChanges();
     });
   });
@@ -837,14 +930,12 @@ describe('LocationList (F-011 S1-S10)', () => {
       'cerrar creación con %p no emite GET, no recarga ni avisa',
       (cancelValue) => {
         fixture.detectChanges();
-        flushList([locationDto()]);
+        flushList([shelfDto()]);
         dialogStub.open.mockReturnValue({ afterClosed: () => of(cancelValue) });
 
         component.openCreate();
 
-        httpMock.expectNone(
-          (request) => request.url === LOCATIONS_URL && request.method === 'GET',
-        );
+        httpMock.expectNone((request) => request.url === SHELVES_URL && request.method === 'GET');
         expect(toastStub['showCreated']).not.toHaveBeenCalled();
         expect(toastStub['showError']).not.toHaveBeenCalled();
         expect(component.items()).toHaveLength(1);
@@ -853,7 +944,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('cerrar edición con undefined no emite GET, no recarga ni avisa', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       dialogStub.open.mockReturnValue({ afterClosed: () => of(undefined) });
 
       component.openEdit(component.items()[0]);
@@ -861,7 +952,7 @@ describe('LocationList (F-011 S1-S10)', () => {
       expect(dialogStub.open.mock.calls[0][1]).toMatchObject({
         data: { mode: 'edit', locationId: 7 },
       });
-      httpMock.expectNone((request) => request.url === LOCATIONS_URL && request.method === 'GET');
+      httpMock.expectNone((request) => request.url === SHELVES_URL && request.method === 'GET');
       expect(toastStub['showUpdated']).not.toHaveBeenCalled();
       expect(toastStub['showError']).not.toHaveBeenCalled();
       expect(component.items()).toHaveLength(1);
@@ -869,7 +960,7 @@ describe('LocationList (F-011 S1-S10)', () => {
 
     it('los diálogos se abren sin disableClose: Escape y backdrop cierran (defecto de MatDialog)', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       dialogStub.open.mockReturnValue({ afterClosed: () => of(undefined) });
 
       component.openCreate();
@@ -885,13 +976,13 @@ describe('LocationList (F-011 S1-S10)', () => {
   describe('accesibilidad (S6/S9)', () => {
     it('tabla etiquetada con cabeceras reales y acciones con nombre accesible', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement as HTMLElement;
       expect(compiled.querySelector('table[aria-label="Ubicaciones"]')).not.toBeNull();
-      expect(compiled.querySelector('button[aria-label="Desactivar Analgésico"]')).not.toBeNull();
-      expect(compiled.querySelector('button[aria-label="Editar Analgésico"]')).not.toBeNull();
+      expect(compiled.querySelector('button[aria-label="Desactivar Estante A"]')).not.toBeNull();
+      expect(compiled.querySelector('button[aria-label="Editar Estante A"]')).not.toBeNull();
       expect(compiled.querySelector('.dm-location-list__empty')).toBeNull();
     });
 
@@ -910,18 +1001,18 @@ describe('LocationList (F-011 S1-S10)', () => {
       ).not.toBeNull();
     });
 
-    it('el buscador tiene etiqueta accesible y el límite de 100 caracteres (S1/S9)', () => {
+    it('el buscador tiene etiqueta accesible por nombre y el límite de 100 caracteres (S1/S9)', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       const input = searchInput();
-      expect(input?.getAttribute('aria-label')).toBe('Buscar ubicaciones por descripción');
+      expect(input?.getAttribute('aria-label')).toBe('Buscar ubicaciones por nombre');
       expect(input?.getAttribute('maxlength')).toBe('100');
     });
 
     it('usa solo tokens --dm-*, sin hex literales ni ::ng-deep, con dm-focus-ring y scroll contenido (S9)', () => {
       fixture.detectChanges();
-      flushList([locationDto()]);
+      flushList([shelfDto()]);
 
       const css = ownStyleText();
 

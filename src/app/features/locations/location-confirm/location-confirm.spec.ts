@@ -26,14 +26,18 @@ describe('LocationConfirmDialog (F-011 S4)', () => {
     vi.restoreAllMocks();
   });
 
-  it('desactivar muestra título, descripción y botón destructivo sin eliminar datos', async () => {
-    const { fixture } = await configure({ description: 'Analgésico', activate: false });
+  it('desactivar muestra el nombre del estante y un aviso neutro sobre asignar medicamentos', async () => {
+    const { fixture } = await configure({ name: 'Estante A', activate: false });
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('Desactivar ubicación');
-    expect(compiled.textContent).toContain('Analgésico');
-    expect(compiled.textContent).toContain('Dejará de estar disponible para las recetas');
-    expect(compiled.textContent).toContain('no elimina sus datos');
+    expect(compiled.textContent).toContain('Desactivar estante');
+    expect(compiled.textContent).not.toContain('Desactivar ubicación');
+    expect(compiled.textContent).toContain('Estante A');
+    expect(compiled.textContent).toContain('Dejará de estar disponible para asignar medicamentos.');
+    // El `DELETE` del backend tiene semántica no verificada: la UI no promete
+    // nada sobre borrado ni conservación de datos.
+    expect(compiled.textContent).not.toContain('no elimina sus datos');
+    expect(compiled.textContent).not.toContain('elimina');
 
     const confirm = compiled.querySelector<HTMLButtonElement>('button.mat-warn');
     expect(confirm).not.toBeNull();
@@ -41,13 +45,14 @@ describe('LocationConfirmDialog (F-011 S4)', () => {
     expect(compiled.querySelector('button.mat-primary')).toBeNull();
   });
 
-  it('activar muestra título, descripción y botón primario (no destructivo)', async () => {
-    const { fixture } = await configure({ description: 'Analgésico', activate: true });
+  it('activar muestra el nombre del estante y el botón primario (no destructivo)', async () => {
+    const { fixture } = await configure({ name: 'Estante A', activate: true });
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('Activar ubicación');
-    expect(compiled.textContent).toContain('Analgésico');
-    expect(compiled.textContent).toContain('Volverá a estar disponible para las recetas');
+    expect(compiled.textContent).toContain('Activar estante');
+    expect(compiled.textContent).not.toContain('Activar ubicación');
+    expect(compiled.textContent).toContain('Estante A');
+    expect(compiled.textContent).toContain('Volverá a estar disponible para asignar medicamentos.');
     expect(compiled.querySelector('button.mat-warn')).toBeNull();
 
     const confirm = compiled.querySelector<HTMLButtonElement>('button.mat-primary');
@@ -55,11 +60,15 @@ describe('LocationConfirmDialog (F-011 S4)', () => {
     expect(confirm?.textContent).toContain('Activar');
   });
 
+  it('los títulos de confirmación nombran al estante (cambio 1)', async () => {
+    const { fixture } = await configure({ name: 'Estante A', activate: false });
+    const title = (fixture.nativeElement as HTMLElement).querySelector('[mat-dialog-title]');
+
+    expect(title?.textContent?.trim()).toBe('Desactivar estante');
+  });
+
   it('confirmar la desactivación devuelve true al listado', async () => {
-    const { fixture, dialogRefStub } = await configure({
-      description: 'Analgésico',
-      activate: false,
-    });
+    const { fixture, dialogRefStub } = await configure({ name: 'Estante A', activate: false });
 
     const compiled = fixture.nativeElement as HTMLElement;
     compiled.querySelector<HTMLButtonElement>('button.mat-warn')?.click();
@@ -69,10 +78,7 @@ describe('LocationConfirmDialog (F-011 S4)', () => {
   });
 
   it('confirmar la activación devuelve true al listado', async () => {
-    const { fixture, dialogRefStub } = await configure({
-      description: 'Analgésico',
-      activate: true,
-    });
+    const { fixture, dialogRefStub } = await configure({ name: 'Estante A', activate: true });
 
     const compiled = fixture.nativeElement as HTMLElement;
     compiled.querySelector<HTMLButtonElement>('button.mat-primary')?.click();
@@ -82,10 +88,7 @@ describe('LocationConfirmDialog (F-011 S4)', () => {
   });
 
   it('«Cancelar» devuelve undefined (cierre sin efectos, como Escape/backdrop)', async () => {
-    const { fixture, dialogRefStub } = await configure({
-      description: 'Analgésico',
-      activate: false,
-    });
+    const { fixture, dialogRefStub } = await configure({ name: 'Estante A', activate: false });
 
     const compiled = fixture.nativeElement as HTMLElement;
     const cancel = Array.from(compiled.querySelectorAll('button')).find((button) =>

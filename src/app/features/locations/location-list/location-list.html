@@ -4,7 +4,7 @@
     @if (isAdmin()) {
       <button mat-flat-button type="button" class="dm-location-list__new" (click)="openCreate()">
         <mat-icon aria-hidden="true">add</mat-icon>
-        Nuevo ubicación
+        Nuevo estante
       </button>
     }
   </div>
@@ -16,7 +16,7 @@
         matInput
         type="search"
         [formControl]="search"
-        aria-label="Buscar ubicaciones por descripción"
+        aria-label="Buscar ubicaciones por nombre"
         maxlength="100"
       />
       <mat-icon matSuffix aria-hidden="true">search</mat-icon>
@@ -61,57 +61,61 @@
           aria-label="Ubicaciones"
           class="dm-location-list__table"
         >
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Nombre</th>
+            <td mat-cell *matCellDef="let shelf">{{ shelf.name }}</td>
+          </ng-container>
+
           <ng-container matColumnDef="description">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="description">Descripción</th>
-            <td mat-cell *matCellDef="let location">{{ location.description }}</td>
+            <th mat-header-cell *matHeaderCellDef>Descripción</th>
+            <td mat-cell *matCellDef="let shelf">
+              <span class="dm-location-list__description">{{ shelf.description ?? '—' }}</span>
+            </td>
           </ng-container>
 
-          <ng-container matColumnDef="shelf">
-            <th mat-header-cell *matHeaderCellDef>Estante</th>
-            <td mat-cell *matCellDef="let location">{{ location.shelf }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="section">
-            <th mat-header-cell *matHeaderCellDef>Tramo</th>
-            <td mat-cell *matCellDef="let location">{{ location.section }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="cell">
-            <th mat-header-cell *matHeaderCellDef>Celda</th>
-            <td mat-cell *matCellDef="let location">{{ location.cell }}</td>
+          <ng-container matColumnDef="cells">
+            <th mat-header-cell *matHeaderCellDef>Celdas</th>
+            <td mat-cell *matCellDef="let shelf">
+              <span class="dm-location-list__cells">
+                {{ formatCells(shelf.cells) }}
+                @if (shelf.cells.length > 0) {
+                  <span class="dm-location-list__cell-count">({{ shelf.cells.length }})</span>
+                }
+              </span>
+            </td>
           </ng-container>
 
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Estado</th>
-            <td mat-cell *matCellDef="let location">
+            <td mat-cell *matCellDef="let shelf">
               <span
                 class="dm-location-list__status-badge"
-                [class.dm-location-list__status-badge--inactive]="!location.isActive"
+                [class.dm-location-list__status-badge--inactive]="!shelf.isActive"
               >
-                {{ location.isActive ? 'Activo' : 'Inactivo' }}
+                {{ shelf.isActive ? 'Activo' : 'Inactivo' }}
               </span>
             </td>
           </ng-container>
 
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef>Acciones</th>
-            <td mat-cell *matCellDef="let location">
+            <td mat-cell *matCellDef="let shelf">
               <button
                 mat-icon-button
                 type="button"
-                [attr.aria-label]="'Editar ' + location.description"
-                [title]="'Editar ' + location.description"
-                (click)="openEdit(location)"
+                [attr.aria-label]="'Editar ' + shelf.name"
+                [title]="'Editar ' + shelf.name"
+                (click)="openEdit(shelf)"
               >
                 <mat-icon aria-hidden="true">edit</mat-icon>
               </button>
-              @if (location.isActive) {
+              @if (shelf.isActive) {
                 <button
                   mat-icon-button
                   type="button"
-                  [attr.aria-label]="'Desactivar ' + location.description"
-                  [title]="'Desactivar ' + location.description"
-                  (click)="confirmToggleActive(location)"
+                  [attr.aria-label]="'Desactivar ' + shelf.name"
+                  [title]="'Desactivar ' + shelf.name"
+                  (click)="confirmToggleActive(shelf)"
                 >
                   <mat-icon aria-hidden="true">block</mat-icon>
                 </button>
@@ -119,9 +123,9 @@
                 <button
                   mat-icon-button
                   type="button"
-                  [attr.aria-label]="'Activar ' + location.description"
-                  [title]="'Activar ' + location.description"
-                  (click)="confirmToggleActive(location)"
+                  [attr.aria-label]="'Activar ' + shelf.name"
+                  [title]="'Activar ' + shelf.name"
+                  (click)="confirmToggleActive(shelf)"
                 >
                   <mat-icon aria-hidden="true">check_circle</mat-icon>
                 </button>
@@ -149,7 +153,11 @@
 
     @if (loading()) {
       <div class="dm-location-list__loading">
-        <mat-progress-spinner mode="indeterminate" diameter="40" aria-label="Cargando ubicaciones" />
+        <mat-progress-spinner
+          mode="indeterminate"
+          diameter="40"
+          aria-label="Cargando ubicaciones"
+        />
       </div>
     }
   </div>

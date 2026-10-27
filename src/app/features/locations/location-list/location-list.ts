@@ -1,13 +1,18 @@
 /**
- * Listado de ubicaciones (F-011, S1/S6/S9/S10): `dm-location-list`
- * dentro del shell, visible para `ADMIN` y `MEDICO`.
+ * Listado de ubicaciones (F-011, S1/S6/S9/S10): `dm-location-list` dentro del
+ * shell, visible para `ADMIN` y `MEDICO`.
  *
- * - Tabla de Material con columnas descripción/estado y `mat-paginator` de
- *   servidor obligatorio (`page` desde 1, `size` 1-100; opciones 10/20/50, por
- *   defecto 20): cada cambio de página, tamaño, búsqueda, filtro o `sort`
- *   emite `GET /v1/locations` y resetea a la primera página cuando cambia el
- *   criterio. El total mostrado es el `total` del servidor; sin paginación ni
- *   filtrado en cliente.
+ * El backend no expone `/v1/locations`: el catálogo real es
+ * **`/v1/shelves`** (estantes) con celdas anidadas, así que cada fila es un
+ * estante y sus celdas se muestran juntas en una columna.
+ *
+ * - Tabla de Material con columnas nombre/descripción/celdas/estado(+acciones)
+ *   y `mat-paginator` de servidor obligatorio (`page` desde 1, `size` 1-100;
+ *   opciones 10/20/50, por defecto 20): cada cambio de página, tamaño,
+ *   búsqueda, filtro o `sort` emite `GET /v1/shelves` y resetea a la primera
+ *   página cuando cambia el criterio. El total mostrado es el `total` del
+ *   servidor; sin paginación ni filtrado en cliente. Solo la columna Nombre es
+ *   ordenable (`name` / `-name`).
  * - Permisos (S7, PQ-02): con `role === 'MEDICO'` no se renderiza ningún
  *   control de escritura en el DOM (ni «Nuevo», ni la columna de acciones):
  *   no es solo deshabilitar. El backend devuelve `403` como red de seguridad.
@@ -20,13 +25,13 @@
  * - Avisos en toast: los toasts quedan para las mutaciones (crear, editar,
  *   activar, desactivar). El fallo de carga del listado **no** va al toast:
  *   se anuncia inline en la región de la tabla (`role="alert"`) con
- *   `retry()`, para no duplicar el anuncio (CA-06). El vacío «No hay tipos de
- *   ubicaciones para mostrar.» también es inline.
+ *   `retry()`, para no duplicar el anuncio (CA-06). El vacío «No hay
+ *   ubicaciones para mostrar.» también es inline y solo aparece cuando la
+ *   carga terminó sin filas y sin error.
  * - «Nuevo ubicación» abre el diálogo de creación; «Editar» precarga con
  *   `GET /{id}`; «Desactivar»/«Activar» piden confirmación explícita
- *   (`DELETE` = desactivación lógica; reactivar reenvía el registro con
- *   `is_active: true` en el `PUT` de reemplazo completo). Cancelar/Escape/
- *   backdrop cierra sin efectos.
+ *   (`DELETE`; reactivar reenvía el estante con `is_active: true` en el `PUT`
+ *   de reemplazo completo). Cancelar/Escape/backdrop cierra sin efectos.
  */
 
 import {
@@ -54,9 +59,13 @@ import { MatTableModule } from '@angular/material/table';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { LocationConfirmData, LocationConfirmDialog } from '../location-confirm/location-confirm';
-import { LocationFormData, LocationFormDialog, LocationFormResult } from '../location-form/location-form';
+import {
+  LocationFormData,
+  LocationFormDialog,
+  LocationFormResult,
+} from '../location-form/location-form';
 import { mapLocationsError } from '../locations-error';
-import { Location } from '../locations.models';
+import { Shelf, formatCells } from '../locations.models';
 import { LocationsToast } from '../locations-toast';
 import { LocationsService } from '../locations.service';
 
@@ -67,8 +76,8 @@ type LocationStatusFilter = 'all' | 'active' | 'inactive';
 const DEFAULT_PAGE_SIZE = 20;
 
 /** Columnas de solo lectura (MEDICO) frente a las de escritura (ADMIN). */
-const READ_ONLY_COLUMNS = ['description', 'shelf', 'section', 'cell', 'status'];
-const WRITABLE_COLUMNS = ['description', 'shelf', 'section', 'cell', 'status', 'actions'];
+const READ_ONLY_COLUMNS = ['name', 'description', 'cells', 'status'];
+const WRITABLE_COLUMNS = ['name', 'description', 'cells', 'status', 'actions'];
 
 @Component({
   selector: 'dm-location-list',
@@ -110,8 +119,11 @@ export class LocationList implements OnInit {
   /** Opciones del paginador (`size` 1-100 según S1). */
   protected readonly pageSizeOptions = [10, 20, 50];
 
-  /** Filas de la página actual (fuente: el servidor, nunca filtrado local). */
-  readonly items = signal<Location[]>([]);
+  /** Texto de la columna Celdas: `«tramo / celda»` unido por `« · »`. */
+  protected readonly formatCells = formatCells;
+
+  /** Filas de la página actual: un estante con sus celdas anidadas. */
+  readonly items = signal<Shelf[]>([]);
 
   /** Total del servidor para el paginador. */
   readonly total = signal(0);
@@ -122,7 +134,7 @@ export class LocationList implements OnInit {
   /** Tamaño de página actual. */
   readonly pageSize = signal(DEFAULT_PAGE_SIZE);
 
-  /** Orden de servidor (`campo` o `-campo`); vacío = orden del backend. */
+  /** Orden de servidor (`name` o `-name`); vacío = orden del backend. */
   readonly sortState = signal<Sort>({ active: '', direction: '' });
 
   /** Carga en curso: solo gobierna la región de la tabla (`aria-busy`). */
@@ -210,8 +222,8 @@ export class LocationList implements OnInit {
   }
 
   /** Diálogo de edición con precarga (`GET /{id}` dentro del diálogo). */
-  openEdit(location: Location): void {
-    const data: LocationFormData = { mode: 'edit', locationId: location.id };
+  openEdit(shelf: Shelf): void {
+    const data: LocationFormData = { mode: 'edit', locationId: shelf.id };
     this.dialog
       .open<LocationFormDialog, LocationFormData, LocationFormResult>(LocationFormDialog, {
         data,
@@ -232,9 +244,9 @@ export class LocationList implements OnInit {
   }
 
   /** Confirmación explícita de activar/desactivar (S4). */
-  confirmToggleActive(location: Location): void {
-    const activate = !location.isActive;
-    const data: LocationConfirmData = { description: location.description, activate };
+  confirmToggleActive(shelf: Shelf): void {
+    const activate = !shelf.isActive;
+    const data: LocationConfirmData = { name: shelf.name, activate };
     this.dialog
       .open<LocationConfirmDialog, LocationConfirmData, boolean>(LocationConfirmDialog, {
         data,
@@ -249,7 +261,7 @@ export class LocationList implements OnInit {
         }
         if (activate) {
           this.locations
-            .reactivate(location)
+            .reactivate(shelf)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
               next: () => this.handleToggleSuccess(true),
@@ -257,7 +269,7 @@ export class LocationList implements OnInit {
             });
         } else {
           this.locations
-            .deactivate(location.id)
+            .deactivate(shelf.id)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
               next: () => this.handleToggleSuccess(false),
@@ -292,7 +304,7 @@ export class LocationList implements OnInit {
   }
 
   /**
-   * Emite `GET /v1/locations` con `page`/`size`/`search`/`is_active`/`sort`
+   * Emite `GET /v1/shelves` con `page`/`size`/`search`/`is_active`/`sort`
    * como carga incremental (S10): no desmonta header/filtros/paginador,
    * conserva las filas visibles hasta que llega la página nueva y deja el foco
    * donde esté. Ante error conserva las filas anteriores y publica el mensaje

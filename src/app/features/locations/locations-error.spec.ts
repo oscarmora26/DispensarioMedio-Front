@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { mapLocationsError } from './locations-error';
+import { mapCellDeleteError, mapCellWriteError, mapLocationsError } from './locations-error';
 
 /**
  * Construye un `HttpErrorResponse` sintético con el cuerpo crudo que mandaría
@@ -9,7 +9,7 @@ function httpError(status: number, body: unknown = null): HttpErrorResponse {
   return new HttpErrorResponse({
     status,
     statusText: 'Error sintético',
-    url: 'http://backend-interno.test/v1/locations',
+    url: 'http://backend-interno.test/v1/shelves',
     error: body,
   });
 }
@@ -73,48 +73,103 @@ describe('mapLocationsError (F-011 S8)', () => {
     });
   });
 
-  describe('409 duplicado (S2)', () => {
-    it('devuelve mensaje propio y error de campo en description', () => {
+  describe('409 duplicado de estante', () => {
+    it('devuelve mensaje propio y error de campo en name (nombre duplicado)', () => {
       const mapped = mapLocationsError(httpError(409, RAW_BODY));
 
-      expect(mapped.message).toBe('Ya existe una ubicación con esa descripción.');
-      expect(mapped.fieldErrors).toEqual({
-        description: 'Ya existe una ubicación con esa descripción.',
-      });
+      expect(mapped.message).toBe('Ya existe una ubicación con ese nombre.');
+      expect(mapped.fieldErrors).toEqual({ name: 'Ya existe una ubicación con ese nombre.' });
     });
   });
 
-  describe('422 validación (S8)', () => {
-    it('mapea errors[].field description al texto propio del campo', () => {
+  describe('escritura de celdas (409 de posición duplicada)', () => {
+    it('traduce el 409 a la posición duplicada, no al nombre del estante', () => {
+      const mapped = mapCellWriteError(httpError(409, RAW_BODY));
+
+      expect(mapped.message).toBe('Ya existe una celda con ese tramo y celda en el estante.');
+      expect(mapped.fieldErrors).toBeUndefined();
+    });
+
+    it('el resto de estados conserva el mapeo común del módulo', () => {
+      expect(mapCellWriteError(httpError(422, { errors: [{ field: 'cells' }] }))).toEqual({
+        message: 'Revisa los datos ingresados.',
+        fieldErrors: { cells: 'Revisa las celdas' },
+      });
+      expect(mapCellWriteError(httpError(0)).message).toBe(
+        'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.',
+      );
+      expect(mapCellWriteError(new Error('boom')).message).toBe(
+        'Ocurrió un error inesperado. Inténtalo de nuevo en unos segundos.',
+      );
+    });
+  });
+
+  describe('baja de celdas (409 con medicamentos asociados)', () => {
+    it('el 409 avisa de los medicamentos asociados con un texto no técnico', () => {
+      const message = mapCellDeleteError(httpError(409, RAW_BODY));
+
+      expect(message).toBe('No se puede eliminar la celda porque tiene medicamentos asociados.');
+      expect(message).not.toContain('RAW-DETAIL-LEAK');
+      expect(message).not.toContain('RAW_CODE_LEAK');
+      expect(message).not.toContain('backend-interno.test');
+    });
+
+    it('el resto de estados usa el mensaje común del módulo', () => {
+      expect(mapCellDeleteError(httpError(404, RAW_BODY))).toBe(
+        'La ubicación solicitada ya no existe. Actualiza la lista.',
+      );
+      expect(mapCellDeleteError(httpError(0))).toBe(
+        'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.',
+      );
+      expect(mapCellDeleteError(httpError(500, RAW_BODY))).toBe(
+        'Ocurrió un error inesperado. Inténtalo de nuevo en unos segundos.',
+      );
+      expect(mapCellDeleteError(new Error('boom'))).toBe(
+        'Ocurrió un error inesperado. Inténtalo de nuevo en unos segundos.',
+      );
+    });
+  });
+
+  describe('422 validación', () => {
+    it.each([
+      ['name', 'Revisa el nombre'],
+      ['description', 'Revisa la descripción'],
+      ['cells', 'Revisa las celdas'],
+    ])('mapea errors[].field %p al texto propio del campo', (field, expected) => {
       const mapped = mapLocationsError(
         httpError(422, {
-          errors: [{ field: 'description', message: 'RAW field detail' }],
+          errors: [{ field, message: 'RAW field detail' }],
           detail: 'RAW-DETAIL-LEAK',
         }),
       );
 
       expect(mapped.message).toBe('Revisa los datos ingresados.');
-      expect(mapped.fieldErrors).toEqual({ description: 'Revisa la descripción' });
+      expect(mapped.fieldErrors).toEqual({ [field]: expected });
     });
 
-    it('conserva solo la primera ocurrencia del campo conocido', () => {
+    it('conserva solo la primera ocurrencia de cada campo conocido', () => {
       const mapped = mapLocationsError(
         httpError(422, {
           errors: [
-            { field: 'description', message: 'primera' },
-            { field: 'description', message: 'segunda' },
+            { field: 'name', message: 'primera' },
+            { field: 'name', message: 'segunda' },
+            { field: 'cells', message: 'primera' },
           ],
         }),
       );
 
-      expect(mapped.fieldErrors).toEqual({ description: 'Revisa la descripción' });
+      expect(mapped.fieldErrors).toEqual({
+        name: 'Revisa el nombre',
+        cells: 'Revisa las celdas',
+      });
     });
 
-    it('ignora campos desconocidos: solo mensaje general, sin fieldErrors', () => {
+    it('ignora campos que no existen en el contrato de estantes: solo mensaje general', () => {
       const mapped = mapLocationsError(
         httpError(422, {
           errors: [
             { field: 'is_active', message: 'unknown' },
+            { field: 'shelf_id', message: 'x' },
             { field: 'otro', message: 'x' },
           ],
         }),
@@ -154,9 +209,23 @@ describe('mapLocationsError (F-011 S8)', () => {
       }
     });
 
+    it('tampoco en los errores propios de las celdas', () => {
+      for (const status of [409, 422, 500]) {
+        const write = JSON.stringify(mapCellWriteError(httpError(status, RAW_BODY)));
+        const remove = mapCellDeleteError(httpError(status, RAW_BODY));
+
+        for (const visible of [write, remove]) {
+          expect(visible).not.toContain('RAW-DETAIL-LEAK');
+          expect(visible).not.toContain('RAW-MESSAGE-LEAK');
+          expect(visible).not.toContain('RAW_CODE_LEAK');
+          expect(visible).not.toContain('backend-interno.test');
+        }
+      }
+    });
+
     it('el message crudo dentro de errors[] del 422 tampoco se expone', () => {
       const mapped = mapLocationsError(
-        httpError(422, { errors: [{ field: 'description', message: 'RAW-MESSAGE-LEAK' }] }),
+        httpError(422, { errors: [{ field: 'name', message: 'RAW-MESSAGE-LEAK' }] }),
       );
 
       expect(JSON.stringify(mapped)).not.toContain('RAW-MESSAGE-LEAK');

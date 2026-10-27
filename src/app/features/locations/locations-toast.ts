@@ -27,24 +27,24 @@ const ERROR_DURATION_MS = 5000;
 export class LocationsToast {
   private readonly snackBar = inject(MatSnackBar);
 
-  /** «Ubicación creada.» tras `POST` → `201`. */
+  /** «Estante creado.» tras `POST /v1/shelves` → `201`. */
   showCreated(): void {
-    this.showSuccess('Ubicación creada.');
+    this.showSuccess('Estante creado.');
   }
 
-  /** «Ubicación actualizada.» tras `PUT` → `200`. */
+  /** «Estante actualizado.» tras `PUT /v1/shelves/{id}` → `200`. */
   showUpdated(): void {
-    this.showSuccess('Ubicación actualizada.');
+    this.showSuccess('Estante actualizado.');
   }
 
-  /** «Ubicación activada.» tras reactivar. */
+  /** «Estante activado.» tras reactivar. */
   showActivated(): void {
-    this.showSuccess('Ubicación activada.');
+    this.showSuccess('Estante activado.');
   }
 
-  /** «Ubicación desactivada.» tras `DELETE` (desactivación lógica). */
+  /** «Estante desactivado.» tras `DELETE /v1/shelves/{id}`. */
   showDeactivated(): void {
-    this.showSuccess('Ubicación desactivada.');
+    this.showSuccess('Estante desactivado.');
   }
 
   /** Éxito genérico: anuncio `polite` (`role="status"`), 2000 ms, sin acción. */
