@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard } from './core/auth/admin.guard';
 import { authGuard, guestGuard } from './core/auth/auth.guard';
 import { AppShell } from './core/layout/app-shell';
 
@@ -16,6 +17,11 @@ export const routes: Routes = [
       {
         path: '',
         loadComponent: () => import('./features/home/home').then((m) => m.Home),
+      },
+      {
+        path: 'users',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./features/users/user-list/user-list').then((m) => m.UserList),
       },
     ],
   },

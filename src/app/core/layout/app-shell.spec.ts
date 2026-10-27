@@ -517,6 +517,65 @@ describe('AppShell', () => {
       expect(document.activeElement).toBe(logout);
     });
 
+    describe('ítem «Usuarios» solo ADMIN (F-006 CA-09)', () => {
+      it('sin sesión no muestra el enlace a Usuarios', () => {
+        const { host } = createShell(true);
+
+        const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
+
+        expect(links).toHaveLength(1);
+        expect(host.textContent).not.toContain('Usuarios');
+      });
+
+      it('con sesión MEDICO no muestra el enlace a Usuarios', () => {
+        seedSession('medico.demo', 'MEDICO');
+        const { host } = createShell(true);
+
+        const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
+
+        expect(links).toHaveLength(1);
+        expect(links[0].textContent).toContain('Inicio');
+        expect(host.textContent).not.toContain('Usuarios');
+      });
+
+      it('con sesión ADMIN muestra Inicio y Usuarios con su ruta', () => {
+        seedSession('admin.demo', 'ADMIN');
+        const { host } = createShell(true);
+
+        const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
+
+        expect(links).toHaveLength(2);
+        expect(links[0].textContent).toContain('Inicio');
+        expect(links[1].textContent).toContain('Usuarios');
+        expect(links[1].getAttribute('href')).toBe('/users');
+      });
+
+      it('con sesión ADMIN el enlace a Usuarios cierra el off-canvas al navegar', () => {
+        seedSession('admin.demo', 'ADMIN');
+        // El harness declara `provideRouter([])`: se intercepta la navegación
+        // real para no ensuciar la suite con NG04002; el cierre del drawer lo
+        // gestiona el `(click)` propio del enlace, no el router.
+        const router = TestBed.inject(Router);
+        const navigateSpy = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+        const { fixture, host, nav, toggle } = createShell(false);
+
+        toggle.click();
+        fixture.detectChanges();
+        expect(nav.hasAttribute('inert')).toBe(false);
+
+        const usersLink = Array.from(
+          host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'),
+        ).find((link) => link.textContent?.includes('Usuarios'));
+
+        expect(usersLink).toBeDefined();
+        usersLink?.click();
+        fixture.detectChanges();
+
+        expect(navigateSpy).toHaveBeenCalled();
+        expect(nav.hasAttribute('inert')).toBe(true);
+        expect(host.querySelector('.dm-shell__backdrop')).toBeNull();
+      });
+    });
   });
 
   describe('blindaje de foco (F-003)', () => {

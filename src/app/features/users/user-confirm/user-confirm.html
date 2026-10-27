@@ -1,0 +1,28 @@
+<h2 mat-dialog-title>{{ data.activate ? 'Activar usuario' : 'Desactivar usuario' }}</h2>
+
+<mat-dialog-content>
+  <p class="dm-user-confirm__text">
+    @if (data.activate) {
+      ¿Activar a <strong>{{ data.username }}</strong
+      >? Volverá a poder iniciar sesión.
+    } @else {
+      ¿Desactivar a <strong>{{ data.username }}</strong
+      >? Dejará de poder iniciar sesión. Esta acción no elimina sus datos.
+    }
+  </p>
+  @if (!data.activate && data.isLastVisibleAdmin) {
+    <p class="dm-user-confirm__warning" role="note">
+      Advertencia: es el único administrador activo entre los usuarios cargados. El sistema impide
+      dejar el servicio sin administradores.
+    </p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [mat-dialog-close]="undefined">Cancelar</button>
+  @if (data.activate) {
+    <button mat-flat-button type="button" color="primary" [mat-dialog-close]="true">Activar</button>
+  } @else {
+    <button mat-flat-button type="button" color="warn" [mat-dialog-close]="true">Desactivar</button>
+  }
+</mat-dialog-actions>

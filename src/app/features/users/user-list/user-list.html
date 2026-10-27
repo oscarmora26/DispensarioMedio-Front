@@ -1,0 +1,142 @@
+<section class="dm-user-list" aria-labelledby="dm-user-list-title">
+  <div class="dm-user-list__header">
+    <h1 id="dm-user-list-title" class="dm-user-list__title">Usuarios</h1>
+    <button mat-flat-button type="button" class="dm-user-list__new" (click)="openCreate()">
+      <mat-icon aria-hidden="true">person_add</mat-icon>
+      Nuevo usuario
+    </button>
+  </div>
+
+  <div class="dm-user-list__filters">
+    <mat-form-field class="dm-user-list__search" appearance="outline">
+      <mat-label>Buscar usuarios</mat-label>
+      <input
+        matInput
+        type="search"
+        [formControl]="search"
+        aria-label="Buscar usuarios por nombre o correo"
+        maxlength="100"
+      />
+      <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field class="dm-user-list__status" appearance="outline">
+      <mat-label>Estado</mat-label>
+      <mat-select [formControl]="statusFilter">
+        <mat-option value="all">Todos</mat-option>
+        <mat-option value="active">Activos</mat-option>
+        <mat-option value="inactive">Inactivos</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="dm-user-list__table-region" [attr.aria-busy]="loading()">
+    @if (items().length > 0) {
+      <div class="dm-user-list__table-wrap">
+        <table
+          mat-table
+          [dataSource]="items()"
+          matSort
+          (matSortChange)="onSort($event)"
+          [matSortActive]="sortState().active"
+          [matSortDirection]="sortState().direction"
+          aria-label="Usuarios"
+          class="dm-user-list__table"
+        >
+          <ng-container matColumnDef="username">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="username">Usuario</th>
+            <td mat-cell *matCellDef="let user">{{ user.username }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="email">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="email">Correo</th>
+            <td mat-cell *matCellDef="let user">{{ user.email }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef>Rol</th>
+            <td mat-cell *matCellDef="let user">{{ roleLabel(user.role) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Estado</th>
+            <td mat-cell *matCellDef="let user">
+              <span
+                class="dm-user-list__status-badge"
+                [class.dm-user-list__status-badge--inactive]="!user.isActive"
+              >
+                {{ user.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
+            <td mat-cell *matCellDef="let user">
+              <button
+                mat-icon-button
+                type="button"
+                [attr.aria-label]="'Editar ' + user.username"
+                [title]="'Editar ' + user.username"
+                (click)="openEdit(user)"
+              >
+                <mat-icon aria-hidden="true">edit</mat-icon>
+              </button>
+              @if (user.isActive) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="
+                    isSelfDeactivationDisabled(user)
+                      ? selfDeactivateLabel(user)
+                      : 'Desactivar ' + user.username
+                  "
+                  [title]="
+                    isSelfDeactivationDisabled(user)
+                      ? selfDeactivateLabel(user)
+                      : 'Desactivar ' + user.username
+                  "
+                  [disabled]="isSelfDeactivationDisabled(user)"
+                  (click)="confirmToggleActive(user)"
+                >
+                  <mat-icon aria-hidden="true">block</mat-icon>
+                </button>
+              } @else {
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Activar ' + user.username"
+                  [title]="'Activar ' + user.username"
+                  (click)="confirmToggleActive(user)"
+                >
+                  <mat-icon aria-hidden="true">check_circle</mat-icon>
+                </button>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+      </div>
+
+      <mat-paginator
+        [length]="total()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [showFirstLastButtons]="true"
+        aria-label="Paginación de usuarios"
+        (page)="onPage($event)"
+      />
+    } @else if (!loading()) {
+      <p class="dm-user-list__empty" role="status">No hay usuarios para mostrar.</p>
+    }
+
+    @if (loading()) {
+      <div class="dm-user-list__loading">
+        <mat-progress-spinner mode="indeterminate" diameter="40" aria-label="Cargando usuarios" />
+      </div>
+    }
+  </div>
+</section>

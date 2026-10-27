@@ -1,0 +1,46 @@
+@use '../../../../styles/tokens' as dm;
+
+// Formulario de usuarios: sin colores literales, solo `var(--dm-*)`.
+.dm-user-form__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-md);
+  padding-block-start: var(--dm-space-xs);
+}
+
+.dm-user-form__field {
+  inline-size: 100%;
+}
+
+// El error se pinta con el texto de error sobre fondo claro del diálogo:
+// nunca error sobre su contenedor (3.94:1, no cumple AA; precedente F-002).
+.dm-user-form__error {
+  margin: 0;
+  color: var(--dm-color-error);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-user-form__loading {
+  margin: 0;
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-user-form__active {
+  align-self: flex-start;
+}
+
+// El toggle mantiene el área táctil mínima de 44px sin enviar el formulario
+// (`type="button"` en el HTML).
+.dm-user-form__toggle {
+  inline-size: 44px;
+  block-size: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-user-form__toggle {
+    transition: none;
+  }
+}
