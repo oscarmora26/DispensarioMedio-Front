@@ -87,10 +87,10 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       expect(compiled.textContent).toContain('Crear medicamento');
     });
 
-    it('el checkbox «Medicamento activa» existe y nace medicamentodo (D-5)', () => {
+    it('el checkbox «Medicamento activo» existe y nace marcado (D-5)', () => {
       const compiled = fixture.nativeElement as HTMLElement;
 
-      expect(compiled.textContent).toContain('Medicamento activa');
+      expect(compiled.textContent).toContain('Medicamento activo');
       expect(compiled.querySelector('mat-checkbox')).not.toBeNull();
       expect(component.form.controls.isActive.value).toBe(true);
     });
@@ -152,7 +152,7 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       expect(dialogRefStub.close).toHaveBeenCalledWith('saved');
     });
 
-    it('envía is_active false cuando el checkbox se desmedicamento', () => {
+    it('envía is_active false cuando el checkbox se desmarca', () => {
       fillValid('Antibiótico');
       component.form.controls.isActive.setValue(false);
 
@@ -164,7 +164,7 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       expect(dialogRefStub.close).toHaveBeenCalledWith('saved');
     });
 
-    it('medicamento aria-busy durante el envío y deshabilita campos y botón (S9)', () => {
+    it('muestra aria-busy durante el envío y deshabilita campos y botón (S9)', () => {
       fillValid();
       component.onSubmit();
       fixture.detectChanges();
@@ -224,7 +224,7 @@ describe('MedicationFormDialog (F-012 S2/S3/S8)', () => {
       expect(dialogRefStub.close).toHaveBeenCalledWith('saved');
     });
 
-    it('ante 422 medicamento el error por campo y avisa en alert sin exponer el backend (S8)', () => {
+    it('ante 422 muestra el error por campo y avisa en alert sin exponer el backend (S8)', () => {
       fillValid();
       component.onSubmit();
 

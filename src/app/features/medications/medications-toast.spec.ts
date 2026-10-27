@@ -22,10 +22,10 @@ describe('MedicationsToast (F-012 S6, patrón F-007)', () => {
 
   describe('éxitos: 2000 ms, polite (role=status), sin acción, center/bottom', () => {
     it.each([
-      ['showCreated', 'Medicamento creada.'],
-      ['showUpdated', 'Medicamento actualizada.'],
-      ['showActivated', 'Medicamento activada.'],
-      ['showDeactivated', 'Medicamento desactivada.'],
+      ['showCreated',  'Medicamento creado.'],
+      ['showUpdated',  'Medicamento actualizado.'],
+      ['showActivated',  'Medicamento activado.'],
+      ['showDeactivated',  'Medicamento desactivado.'],
     ])('%s anuncia %p sin acción de cierre', (method, message) => {
       (toast[method as keyof MedicationsToast] as (message?: string) => void)();
 

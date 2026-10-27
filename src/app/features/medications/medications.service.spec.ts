@@ -169,7 +169,7 @@ describe('MedicationsService (F-012)', () => {
       expect(result?.createdAt).toBe('2026-01-01T00:00:00Z');
     });
 
-    it('respeta is_active false cuando el checkbox viene desmedicamentodo (D-5)', () => {
+    it('respeta is_active false cuando el checkbox viene desmarcado (D-5)', () => {
       service.create({ description: 'Antibiótico', drugTypeId: 1, brandId: 2, locationId: 3, dose: '250 mg', isActive: false }).subscribe();
 
       const req = httpMock.expectOne(MEDICATIONS_URL);
