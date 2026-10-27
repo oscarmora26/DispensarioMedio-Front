@@ -29,6 +29,11 @@ export const routes: Routes = [
           import('./features/brands/brand-list/brand-list').then((m) => m.BrandList),
       },
       {
+        path: 'locations',
+        loadComponent: () =>
+          import('./features/locations/location-list/location-list').then((m) => m.LocationList),
+      },
+      {
         path: 'users',
         canActivate: [adminGuard],
         loadComponent: () => import('./features/users/user-list/user-list').then((m) => m.UserList),

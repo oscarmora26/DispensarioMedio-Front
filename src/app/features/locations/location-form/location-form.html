@@ -1,0 +1,127 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar ubicación' : 'Nueva ubicación' }}</h2>
+
+<mat-dialog-content>
+  <form
+    id="dm-location-form"
+    class="dm-location-form__form"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    novalidate
+    [attr.aria-busy]="submitting() || loadingLocation()"
+  >
+    <mat-form-field class="dm-location-form__field" appearance="outline">
+      <mat-label>Descripción</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="description"
+        autocomplete="off"
+        [attr.maxlength]="maxLength"
+        required
+      />
+      <mat-hint>Entre 1 y {{ maxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.description.hasError('required')) {
+          Ingresa la descripción
+        } @else if (form.controls.description.hasError('maxlength')) {
+          La descripción no debe superar los {{ maxLength }} caracteres.
+        } @else if (form.controls.description.hasError('server')) {
+          {{ fieldErrors().description }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-location-form__field" appearance="outline">
+      <mat-label>Estante</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="shelf"
+        autocomplete="off"
+        [attr.maxlength]="maxLength"
+        required
+      />
+      <mat-error>
+        @if (form.controls.shelf.hasError('required')) {
+          Ingresa el estante
+        } @else if (form.controls.shelf.hasError('maxlength')) {
+          El estante no debe superar los {{ maxLength }} caracteres.
+        } @else if (form.controls.shelf.hasError('server')) {
+          {{ fieldErrors().shelf }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-location-form__field" appearance="outline">
+      <mat-label>Tramo</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="section"
+        autocomplete="off"
+        [attr.maxlength]="maxLength"
+        required
+      />
+      <mat-error>
+        @if (form.controls.section.hasError('required')) {
+          Ingresa el tramo
+        } @else if (form.controls.section.hasError('maxlength')) {
+          El tramo no debe superar los {{ maxLength }} caracteres.
+        } @else if (form.controls.section.hasError('server')) {
+          {{ fieldErrors().section }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-location-form__field" appearance="outline">
+      <mat-label>Celda</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="cell"
+        autocomplete="off"
+        [attr.maxlength]="maxLength"
+        required
+      />
+      <mat-error>
+        @if (form.controls.cell.hasError('required')) {
+          Ingresa la celda
+        } @else if (form.controls.cell.hasError('maxlength')) {
+          La celda no debe superar los {{ maxLength }} caracteres.
+        } @else if (form.controls.cell.hasError('server')) {
+          {{ fieldErrors().cell }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    @if (!isEdit) {
+      <mat-checkbox class="dm-location-form__active" formControlName="isActive">
+        Ubicación activa
+      </mat-checkbox>
+    }
+
+    @if (loadingLocation()) {
+      <p class="dm-location-form__loading" role="status">Cargando ubicación…</p>
+    }
+
+    @if (error()) {
+      <p class="dm-location-form__error" role="alert">{{ error() }}</p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancelar</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="dm-location-form"
+    [disabled]="submitting() || loadingLocation()"
+  >
+    @if (submitting()) {
+      Guardando…
+    } @else {
+      {{ isEdit ? 'Guardar cambios' : 'Crear ubicación' }}
+    }
+  </button>
+</mat-dialog-actions>

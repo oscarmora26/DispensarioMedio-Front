@@ -816,7 +816,54 @@ Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico
 
 
 - 2026-10-27 — Implementación completa (5b2e7b9): models/service/error/toast/list/form/confirm + ruta + nav. Reviewer PASS S1..S10, 413 tests verdes, lint, build, features:validate. docs/BRANDS.md. Cierre done.
-## Plantilla
+
+### F-011 — Módulo para gestionar ubicaciones
+
+- **Estado:** done
+- **Prioridad:** Alta
+- **Aprobado por:** Oscar Mora
+- **Fecha de aprobación:** 2026-10-27
+- **Dependencias:** F-009 (patrón CRUD), API /api/v1/locations (Sprint 3, US-17)
+
+**Descripción**
+
+CRUD del catálogo de ubicaciones físicas (RF-06, US-17) siguiendo el criterio estándar CA-CRUD (doc 01 §7). Es el tercer catálogo maestro de la épica E2 y completa la regla del tres (PQ-01): con tres casos reales se evalúa la extracción a shared/ (US-08). Campos: description, shelf, section, cell, is_active. La combinación (shelf, section, cell) es única. Ruta /locations dentro del shell con carga lazy; ítem «Ubicaciones» en el menú, visible para ADMIN y MEDICO.
+
+Contrato verificado contra el OpenAPI vivo (2026-10-27):
+
+- GET /api/v1/locations: page ≥1, size 1-100 (por defecto 20), search ≤100 parcial en description, is_active, sort ∈ description|created_at|is_active|id con prefijo - (por defecto description). Respuesta items/total/page/size/pages.
+- POST /locations: description, shelf, section, cell requeridos; is_active opcional (por defecto true); 201; 409 en duplicado.
+- GET/PUT/DELETE /locations/{id}: PUT = reemplazo completo conservando created_at; DELETE = desactivación lógica (is_active: false), nunca borrado físico.
+
+Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico muestra la tabla sin acciones de escritura.
+
+**Criterios de aceptación**
+
+- [x] CA-01 Listado con paginación 100% servidor.
+- [x] CA-02 Crear: description, shelf, section, cell requeridos; 201 cierra con toast; 409 duplicado marca error de campo.
+- [x] CA-03 Editar: diálogo precargado con GET /{id}; 200 conserva created_at.
+- [x] CA-04 Desactivar/Activar con confirmación explícita.
+- [x] CA-05 Permisos: MEDICO solo lectura.
+- [x] CA-06 Estados de UI completos: loading, vacío («No hay ubicaciones para mostrar.»), error con reintento, toast.
+- [x] CA-07 Diseño: solo tokens --dm-*.
+- [x] CA-08 done requiere: PASS del reviewer, lint, test, build, features:validate.
+
+**Tareas**
+
+- [x] T-011-01 Modelo y servicio.
+- [x] T-011-02 Listado.
+- [x] T-011-03 Diálogos y confirmación.
+- [x] T-011-04 Ruta lazy + nav.
+- [x] T-011-05 Documentación + cierre.
+
+**Historial**
+
+- 2026-10-27 — spec: feature creada.
+
+
+
+
+- 2026-10-27 — Implementación completa: models/service/error/toast/list/form/confirm + ruta + nav. Reviewer PASS S1..S10, 510 tests verdes, lint, build, features:validate. docs/LOCATIONS.md. Cierre done.## Plantilla
 
 ```md
 ### F-001 — Título de la feature

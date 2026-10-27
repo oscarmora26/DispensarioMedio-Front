@@ -1,0 +1,156 @@
+<section class="dm-location-list" aria-labelledby="dm-location-list-title">
+  <div class="dm-location-list__header">
+    <h1 id="dm-location-list-title" class="dm-location-list__title">Ubicaciones</h1>
+    @if (isAdmin()) {
+      <button mat-flat-button type="button" class="dm-location-list__new" (click)="openCreate()">
+        <mat-icon aria-hidden="true">add</mat-icon>
+        Nuevo ubicación
+      </button>
+    }
+  </div>
+
+  <div class="dm-location-list__filters">
+    <mat-form-field class="dm-location-list__search" appearance="outline">
+      <mat-label>Buscar ubicaciones</mat-label>
+      <input
+        matInput
+        type="search"
+        [formControl]="search"
+        aria-label="Buscar ubicaciones por descripción"
+        maxlength="100"
+      />
+      <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field class="dm-location-list__status-filter" appearance="outline">
+      <mat-label>Estado</mat-label>
+      <mat-select [formControl]="statusFilter">
+        <mat-option value="all">Todos</mat-option>
+        <mat-option value="active">Activos</mat-option>
+        <mat-option value="inactive">Inactivos</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="dm-location-list__table-region" [attr.aria-busy]="loading()">
+    @if (errorMessage(); as errorMessage) {
+      <div class="dm-location-list__error" role="alert">
+        <p class="dm-location-list__error-message">{{ errorMessage }}</p>
+        <button
+          mat-stroked-button
+          type="button"
+          class="dm-location-list__retry"
+          aria-label="Reintentar la carga de ubicaciones"
+          [disabled]="loading()"
+          (click)="retry()"
+        >
+          Reintentar
+        </button>
+      </div>
+    }
+
+    @if (items().length > 0) {
+      <div class="dm-location-list__table-wrap">
+        <table
+          mat-table
+          [dataSource]="items()"
+          matSort
+          (matSortChange)="onSort($event)"
+          [matSortActive]="sortState().active"
+          [matSortDirection]="sortState().direction"
+          aria-label="Ubicaciones"
+          class="dm-location-list__table"
+        >
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="description">Descripción</th>
+            <td mat-cell *matCellDef="let location">{{ location.description }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="shelf">
+            <th mat-header-cell *matHeaderCellDef>Estante</th>
+            <td mat-cell *matCellDef="let location">{{ location.shelf }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="section">
+            <th mat-header-cell *matHeaderCellDef>Tramo</th>
+            <td mat-cell *matCellDef="let location">{{ location.section }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="cell">
+            <th mat-header-cell *matHeaderCellDef>Celda</th>
+            <td mat-cell *matCellDef="let location">{{ location.cell }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Estado</th>
+            <td mat-cell *matCellDef="let location">
+              <span
+                class="dm-location-list__status-badge"
+                [class.dm-location-list__status-badge--inactive]="!location.isActive"
+              >
+                {{ location.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
+            <td mat-cell *matCellDef="let location">
+              <button
+                mat-icon-button
+                type="button"
+                [attr.aria-label]="'Editar ' + location.description"
+                [title]="'Editar ' + location.description"
+                (click)="openEdit(location)"
+              >
+                <mat-icon aria-hidden="true">edit</mat-icon>
+              </button>
+              @if (location.isActive) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Desactivar ' + location.description"
+                  [title]="'Desactivar ' + location.description"
+                  (click)="confirmToggleActive(location)"
+                >
+                  <mat-icon aria-hidden="true">block</mat-icon>
+                </button>
+              } @else {
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Activar ' + location.description"
+                  [title]="'Activar ' + location.description"
+                  (click)="confirmToggleActive(location)"
+                >
+                  <mat-icon aria-hidden="true">check_circle</mat-icon>
+                </button>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
+        </table>
+      </div>
+
+      <mat-paginator
+        [length]="total()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [showFirstLastButtons]="true"
+        aria-label="Paginación de ubicaciones"
+        (page)="onPage($event)"
+      />
+    } @else if (!loading() && !errorMessage()) {
+      <p class="dm-location-list__empty" role="status">No hay ubicaciones para mostrar.</p>
+    }
+
+    @if (loading()) {
+      <div class="dm-location-list__loading">
+        <mat-progress-spinner mode="indeterminate" diameter="40" aria-label="Cargando ubicaciones" />
+      </div>
+    }
+  </div>
+</section>

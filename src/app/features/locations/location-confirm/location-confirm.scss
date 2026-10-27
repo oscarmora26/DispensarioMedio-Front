@@ -1,0 +1,9 @@
+@use '../../../../styles/tokens' as dm;
+
+// Confirmación de activar/desactivar: sin colores literales, solo `var(--dm-*)`.
+.dm-location-confirm__text {
+  margin: 0;
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
