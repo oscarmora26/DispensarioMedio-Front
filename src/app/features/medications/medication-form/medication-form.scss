@@ -1,0 +1,30 @@
+@use '../../../../styles/tokens' as dm;
+
+.dm-medication-form__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-md);
+  padding-block-start: var(--dm-space-xs);
+}
+
+.dm-medication-form__field {
+  inline-size: 100%;
+}
+
+.dm-medication-form__loading,
+.dm-medication-form__error {
+  margin: 0;
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-medication-form__loading {
+  color: var(--dm-color-muted);
+}
+
+.dm-medication-form__error {
+  padding: var(--dm-space-sm) var(--dm-space-md);
+  border-inline-start: 4px solid var(--dm-color-error);
+  border-radius: var(--dm-radius-sm);
+  background-color: var(--dm-color-error-container);
+  color: var(--dm-color-text);
+}

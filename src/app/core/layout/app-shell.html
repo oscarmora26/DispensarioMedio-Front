@@ -85,6 +85,18 @@
           <span class="dm-nav__label">Ubicaciones</span>
         </a>
       </li>
+      <li class="dm-nav__item">
+        <a
+          class="dm-nav__link"
+          routerLink="/medications"
+          routerLinkActive="dm-nav__link--active"
+          ariaCurrentWhenActive="page"
+          (click)="closeNavigation()"
+        >
+          <mat-icon aria-hidden="true">medication</mat-icon>
+          <span class="dm-nav__label">Medicamentos</span>
+        </a>
+      </li>
       @if (isAdmin()) {
         <li class="dm-nav__item">
           <a

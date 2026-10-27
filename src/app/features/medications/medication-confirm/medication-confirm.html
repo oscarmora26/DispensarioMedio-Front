@@ -1,0 +1,22 @@
+<h2 mat-dialog-title>{{ data.activate ? 'Activar medicamento' : 'Desactivar medicamento' }}</h2>
+
+<mat-dialog-content>
+  <p class="dm-medication-confirm__text">
+    @if (data.activate) {
+      ¿Activar <strong>{{ data.description }}</strong
+      >? Volverá a estar disponible para las recetas.
+    } @else {
+      ¿Desactivar <strong>{{ data.description }}</strong
+      >? Dejará de estar disponible para las recetas. Esta acción no elimina sus datos.
+    }
+  </p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [mat-dialog-close]="undefined">Cancelar</button>
+  @if (data.activate) {
+    <button mat-flat-button type="button" color="primary" [mat-dialog-close]="true">Activar</button>
+  } @else {
+    <button mat-flat-button type="button" color="warn" [mat-dialog-close]="true">Desactivar</button>
+  }
+</mat-dialog-actions>

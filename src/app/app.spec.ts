@@ -95,13 +95,13 @@ describe('App', () => {
       expect(login.component).toBeUndefined();
     });
 
-    it('monta el shell en la ruta padre protegida con Home, drug-types, brands, locations y users como hijas (F-006 CA-01, F-009 S6, F-010 S6, F-011 S6)', () => {
+    it('monta el shell en la ruta padre protegida con Home, drug-types, brands, locations, medications y users como hijas (F-006 CA-01, F-009 S6, F-010 S6, F-011 S6, F-012 S6)', () => {
       const root = routes[1];
 
       expect(root.path).toBe('');
       expect(root.component).toBe(AppShell);
       expect(root.canActivate).toEqual([authGuard]);
-      expect(root.children?.length).toBe(5);
+      expect(root.children?.length).toBe(6);
       expect(root.children?.[0].path).toBe('');
       expect(typeof root.children?.[0].loadComponent).toBe('function');
     });
@@ -135,8 +135,17 @@ describe('App', () => {
       expect(locations?.component).toBeUndefined();
     });
 
+    it('declara /medications como hija lazy del shell sin adminGuard (F-012 S6/S7)', () => {
+      const medications = routes[1].children?.[4];
+
+      expect(medications?.path).toBe('medications');
+      expect(medications?.canActivate).toBeUndefined();
+      expect(typeof medications?.loadComponent).toBe('function');
+      expect(medications?.component).toBeUndefined();
+    });
+
     it('declara users como hija lazy con adminGuard dentro del shell (F-006 CA-01)', () => {
-      const users = routes[1].children?.[4];
+      const users = routes[1].children?.[5];
 
       expect(users?.path).toBe('users');
       expect(users?.canActivate).toEqual([adminGuard]);

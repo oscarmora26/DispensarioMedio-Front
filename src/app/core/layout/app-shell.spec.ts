@@ -523,11 +523,12 @@ describe('AppShell', () => {
 
         const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
 
-        expect(links).toHaveLength(4);
+        expect(links).toHaveLength(5);
         expect(links[0].textContent).toContain('Inicio');
         expect(links[1].textContent).toContain('Tipos de fármacos');
         expect(links[2].textContent).toContain('Marcas');
         expect(links[3].textContent).toContain('Ubicaciones');
+        expect(links[4].textContent).toContain('Medicamentos');
         expect(host.textContent).not.toContain('Usuarios');
       });
 
@@ -537,11 +538,12 @@ describe('AppShell', () => {
 
         const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
 
-        expect(links).toHaveLength(4);
+        expect(links).toHaveLength(5);
         expect(links[0].textContent).toContain('Inicio');
         expect(links[1].textContent).toContain('Tipos de fármacos');
         expect(links[2].textContent).toContain('Marcas');
         expect(links[3].textContent).toContain('Ubicaciones');
+        expect(links[4].textContent).toContain('Medicamentos');
         expect(host.textContent).not.toContain('Usuarios');
       });
 
@@ -551,7 +553,7 @@ describe('AppShell', () => {
 
         const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
 
-        expect(links).toHaveLength(5);
+        expect(links).toHaveLength(6);
         expect(links[0].textContent).toContain('Inicio');
         expect(links[1].textContent).toContain('Tipos de fármacos');
         expect(links[1].getAttribute('href')).toBe('/drug-types');
@@ -559,8 +561,10 @@ describe('AppShell', () => {
         expect(links[2].getAttribute('href')).toBe('/brands');
         expect(links[3].textContent).toContain('Ubicaciones');
         expect(links[3].getAttribute('href')).toBe('/locations');
-        expect(links[4].textContent).toContain('Usuarios');
-        expect(links[4].getAttribute('href')).toBe('/users');
+        expect(links[4].textContent).toContain('Medicamentos');
+        expect(links[4].getAttribute('href')).toBe('/medications');
+        expect(links[5].textContent).toContain('Usuarios');
+        expect(links[5].getAttribute('href')).toBe('/users');
       });
 
       it('con sesión ADMIN el enlace a Usuarios cierra el off-canvas al navegar', () => {

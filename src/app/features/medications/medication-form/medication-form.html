@@ -1,0 +1,134 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar medicamento' : 'Nuevo medicamento' }}</h2>
+
+<mat-dialog-content>
+  <form
+    id="dm-medication-form"
+    class="dm-medication-form__form"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    novalidate
+    [attr.aria-busy]="submitting() || loadingMedication()"
+  >
+    <mat-form-field class="dm-medication-form__field" appearance="outline">
+      <mat-label>Descripción</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="description"
+        autocomplete="off"
+        [attr.maxlength]="maxLength"
+        required
+      />
+      <mat-hint>Entre 1 y {{ maxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.description.hasError('required')) {
+          Ingresa la descripción
+        } @else if (form.controls.description.hasError('maxlength')) {
+          La descripción no debe superar los {{ maxLength }} caracteres.
+        } @else if (form.controls.description.hasError('server')) {
+          {{ fieldErrors().description }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-medication-form__field" appearance="outline">
+      <mat-label>Tipo de fármaco</mat-label>
+      <mat-select formControlName="drugTypeId" required>
+        @for (option of drugTypeOptions(); track option.id) {
+          <mat-option [value]="option.id">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+      <mat-error>
+        @if (form.controls.drugTypeId.hasError('required')) {
+          Selecciona un tipo
+        } @else if (form.controls.drugTypeId.hasError('server')) {
+          {{ fieldErrors().drugTypeId }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-medication-form__field" appearance="outline">
+      <mat-label>Marca</mat-label>
+      <mat-select formControlName="brandId" required>
+        @for (option of brandOptions(); track option.id) {
+          <mat-option [value]="option.id">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+      <mat-error>
+        @if (form.controls.brandId.hasError('required')) {
+          Selecciona una marca
+        } @else if (form.controls.brandId.hasError('server')) {
+          {{ fieldErrors().brandId }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-medication-form__field" appearance="outline">
+      <mat-label>Ubicación</mat-label>
+      <mat-select formControlName="locationId" required>
+        @for (option of locationOptions(); track option.id) {
+          <mat-option [value]="option.id">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+      <mat-error>
+        @if (form.controls.locationId.hasError('required')) {
+          Selecciona una ubicación
+        } @else if (form.controls.locationId.hasError('server')) {
+          {{ fieldErrors().locationId }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-medication-form__field" appearance="outline">
+      <mat-label>Dosis</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="dose"
+        autocomplete="off"
+        [attr.maxlength]="maxLength"
+        required
+      />
+      <mat-error>
+        @if (form.controls.dose.hasError('required')) {
+          Ingresa la dosis
+        } @else if (form.controls.dose.hasError('maxlength')) {
+          La dosis no debe superar los {{ maxLength }} caracteres.
+        } @else if (form.controls.dose.hasError('server')) {
+          {{ fieldErrors().dose }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    @if (!isEdit) {
+      <mat-checkbox class="dm-medication-form__active" formControlName="isActive">
+        Medicamento activo
+      </mat-checkbox>
+    }
+
+    @if (loadingMedication()) {
+      <p class="dm-medication-form__loading" role="status">Cargando medicamento…</p>
+    }
+
+    @if (error()) {
+      <p class="dm-medication-form__error" role="alert">{{ error() }}</p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancelar</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="dm-medication-form"
+    [disabled]="submitting() || loadingMedication()"
+  >
+    @if (submitting()) {
+      Guardando…
+    } @else {
+      {{ isEdit ? 'Guardar cambios' : 'Crear medicamento' }}
+    }
+  </button>
+</mat-dialog-actions>
+EOF echo "written"
