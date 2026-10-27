@@ -1,0 +1,211 @@
+@use '../../../../styles/tokens' as dm;
+
+// Listado de pacientes: sin colores literales, solo `var(--dm-*)`.
+.dm-patient-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-md);
+}
+
+// Anillo de foco propio para controles nativos (blindaje F-003 para los
+// inputs de Material). Definido en `styles/_tokens.scss`.
+@include dm.dm-focus-ring;
+
+.dm-patient-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dm-space-md);
+  flex-wrap: wrap;
+}
+
+.dm-patient-list__title {
+  margin: 0;
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(headline-sm);
+}
+
+.dm-patient-list__new {
+  min-block-size: 36px;
+}
+
+.dm-patient-list__filters {
+  display: flex;
+  gap: var(--dm-space-md);
+  flex-wrap: wrap;
+}
+
+.dm-patient-list__search {
+  flex: 1 1 16rem;
+}
+
+.dm-patient-list__status-filter {
+  flex: 0 1 12rem;
+}
+
+// Región de la tabla: única zona que conmuta entre tabla/paginador, vacío y
+// carga (S12). Header y filtros permanecen montados: sin parpadeo del layout
+// ni pérdida de foco en el buscador. `aria-busy` vive aquí, no en la sección.
+// Es además el ancla del overlay de carga: sin `position: relative` el
+// indicador absoluto no cubriría la región.
+.dm-patient-list__table-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-md);
+  position: relative;
+}
+
+// Carga contenida (patrón F-008): el indicador flota sobre la región en capa
+// absoluta y nunca ocupa altura en flujo, así el `main` del shell no cambia y
+// el `footer.dm-footer` no salta al buscar/filtrar/paginar/ordenar. Sin fondo
+// propio, sin colores nuevos y sin interceptar el puntero: el foco permanece
+// en el buscador. `prefers-reduced-motion` intacto (sin animación propia).
+.dm-patient-list__loading {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  padding-block: var(--dm-space-md);
+  pointer-events: none;
+}
+
+.dm-patient-list__empty {
+  margin: 0;
+  padding: var(--dm-space-xl) 0;
+  text-align: center;
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(body-md);
+}
+
+// Error de carga con reintento (S12). Texto del sistema sobre el contenedor de
+// error, nunca el color de error sobre su propio fondo (3.94:1, no cumple AA).
+.dm-patient-list__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--dm-space-md);
+  padding: var(--dm-space-sm) var(--dm-space-md);
+  border-inline-start: 4px solid var(--dm-color-error);
+  border-radius: var(--dm-radius-sm);
+  background-color: var(--dm-color-error-container);
+  color: var(--dm-color-text);
+}
+
+.dm-patient-list__error-message {
+  margin: 0;
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-patient-list__retry {
+  flex: 0 0 auto;
+}
+
+// En <768px la tabla usa scroll horizontal contenido (docs/DESIGN.md).
+.dm-patient-list__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--dm-color-border-subtle);
+  border-radius: var(--dm-radius-lg);
+  background-color: var(--dm-color-surface);
+  box-shadow: var(--dm-elevation-1);
+}
+
+.dm-patient-list__table {
+  inline-size: 100%;
+  min-inline-size: 48rem;
+  background-color: var(--dm-color-surface);
+}
+
+// Header: fondo canvas con borde inferior de 2px (docs/DESIGN.md).
+.dm-patient-list__table .mat-mdc-header-row {
+  background-color: var(--dm-color-canvas);
+  border-block-end: 2px solid var(--dm-color-border-subtle);
+}
+
+.dm-patient-list__table .mat-mdc-header-cell {
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(label-sm);
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+// Filas de 48px, borde inferior sutil y hover con transición de 150ms.
+.dm-patient-list__table .mat-mdc-row {
+  min-block-size: 48px;
+  border-block-end: 1px solid var(--dm-color-border-subtle);
+  transition: background-color var(--dm-transition-fast);
+
+  &:hover {
+    background-color: var(--dm-color-primary-container);
+  }
+}
+
+.dm-patient-list__table .mat-mdc-cell {
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
+
+// La cédula con máscara no se parte entre bloques ni se lee como número.
+.dm-patient-list__cedula {
+  white-space: nowrap;
+
+  @include dm.dm-tabular-nums;
+}
+
+// Estado con los chips AA del sistema (REGISTRADA 4.57:1 / ANULADA 5.30:1).
+.dm-patient-list__status-badge {
+  display: inline-block;
+  padding: var(--dm-space-xxs) var(--dm-space-sm);
+  border: 1px solid var(--dm-chip-registrada-border);
+  border-radius: var(--dm-radius-pill);
+  background-color: var(--dm-chip-registrada-bg);
+  color: var(--dm-chip-registrada-text);
+  white-space: nowrap;
+
+  @include dm.dm-typescale(label-md);
+}
+
+.dm-patient-list__status-badge--inactive {
+  border-color: var(--dm-chip-anulada-border);
+  background-color: var(--dm-chip-anulada-bg);
+  color: var(--dm-chip-anulada-text);
+}
+
+@include dm.dm-mobile {
+  .dm-patient-list__filters {
+    flex-direction: column;
+  }
+
+  .dm-patient-list__search,
+  .dm-patient-list__status-filter {
+    flex: 1 1 auto;
+  }
+
+  .dm-patient-list__new {
+    min-block-size: 44px;
+  }
+
+  .dm-patient-list__error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dm-patient-list__retry {
+    min-block-size: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-patient-list__table .mat-mdc-row {
+    transition: none;
+  }
+}

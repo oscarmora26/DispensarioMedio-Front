@@ -1,0 +1,158 @@
+<section class="dm-patient-list" aria-labelledby="dm-patient-list-title">
+  <div class="dm-patient-list__header">
+    <h1 id="dm-patient-list-title" class="dm-patient-list__title">Pacientes</h1>
+    @if (isAdmin()) {
+      <button mat-flat-button type="button" class="dm-patient-list__new" (click)="openCreate()">
+        <mat-icon aria-hidden="true">person_add</mat-icon>
+        Nuevo paciente
+      </button>
+    }
+  </div>
+
+  <div class="dm-patient-list__filters">
+    <mat-form-field class="dm-patient-list__search" appearance="outline">
+      <mat-label>Buscar pacientes</mat-label>
+      <input
+        matInput
+        type="search"
+        [formControl]="search"
+        aria-label="Buscar pacientes por nombre, cédula o carnet"
+        [attr.maxlength]="searchMaxLength"
+      />
+      <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field class="dm-patient-list__status-filter" appearance="outline">
+      <mat-label>Estado</mat-label>
+      <mat-select [formControl]="statusFilter">
+        <mat-option value="all">Todos</mat-option>
+        <mat-option value="active">Activos</mat-option>
+        <mat-option value="inactive">Inactivos</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="dm-patient-list__table-region" [attr.aria-busy]="loading()">
+    @if (errorMessage(); as errorMessage) {
+      <div class="dm-patient-list__error" role="alert">
+        <p class="dm-patient-list__error-message">{{ errorMessage }}</p>
+        <button
+          mat-stroked-button
+          type="button"
+          class="dm-patient-list__retry"
+          aria-label="Reintentar la carga de pacientes"
+          [disabled]="loading()"
+          (click)="retry()"
+        >
+          Reintentar
+        </button>
+      </div>
+    }
+
+    @if (items().length > 0) {
+      <div class="dm-patient-list__table-wrap">
+        <table
+          mat-table
+          [dataSource]="items()"
+          matSort
+          (matSortChange)="onSort($event)"
+          [matSortActive]="sortState().active"
+          [matSortDirection]="sortState().direction"
+          aria-label="Pacientes"
+          class="dm-patient-list__table"
+        >
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Nombre</th>
+            <td mat-cell *matCellDef="let patient">{{ patient.name }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="cedula">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="cedula">Cédula</th>
+            <td mat-cell *matCellDef="let patient" class="dm-patient-list__cedula">
+              {{ formatCedula(patient.cedula) }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="carnet">
+            <th mat-header-cell *matHeaderCellDef>Carnet</th>
+            <td mat-cell *matCellDef="let patient">{{ patient.carnet ?? '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Tipo</th>
+            <td mat-cell *matCellDef="let patient">{{ patientTypeLabel(patient.patientType) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Estado</th>
+            <td mat-cell *matCellDef="let patient">
+              <span
+                class="dm-patient-list__status-badge"
+                [class.dm-patient-list__status-badge--inactive]="!patient.isActive"
+              >
+                {{ patient.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
+            <td mat-cell *matCellDef="let patient">
+              <button
+                mat-icon-button
+                type="button"
+                [attr.aria-label]="'Editar ' + patient.name"
+                [title]="'Editar ' + patient.name"
+                (click)="openEdit(patient)"
+              >
+                <mat-icon aria-hidden="true">edit</mat-icon>
+              </button>
+              @if (patient.isActive) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Desactivar ' + patient.name"
+                  [title]="'Desactivar ' + patient.name"
+                  (click)="confirmToggleActive(patient)"
+                >
+                  <mat-icon aria-hidden="true">block</mat-icon>
+                </button>
+              } @else {
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Activar ' + patient.name"
+                  [title]="'Activar ' + patient.name"
+                  (click)="confirmToggleActive(patient)"
+                >
+                  <mat-icon aria-hidden="true">check_circle</mat-icon>
+                </button>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
+        </table>
+      </div>
+
+      <mat-paginator
+        [length]="total()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [showFirstLastButtons]="true"
+        aria-label="Paginación de pacientes"
+        (page)="onPage($event)"
+      />
+    } @else if (!loading() && !errorMessage()) {
+      <p class="dm-patient-list__empty" role="status">No hay pacientes para mostrar.</p>
+    }
+
+    @if (loading()) {
+      <div class="dm-patient-list__loading">
+        <mat-progress-spinner mode="indeterminate" diameter="40" aria-label="Cargando pacientes" />
+      </div>
+    }
+  </div>
+</section>

@@ -1,0 +1,122 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar paciente' : 'Nuevo paciente' }}</h2>
+
+<mat-dialog-content>
+  <form
+    id="dm-patient-form"
+    class="dm-patient-form__form"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    novalidate
+    [attr.aria-busy]="submitting() || loadingPatient()"
+  >
+    <mat-form-field class="dm-patient-form__field" appearance="outline">
+      <mat-label>Nombre completo</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="name"
+        autocomplete="off"
+        [attr.maxlength]="nameMaxLength"
+        required
+      />
+      <mat-hint>Entre 1 y {{ nameMaxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.name.hasError('required')) {
+          Ingresa el nombre
+        } @else if (form.controls.name.hasError('maxlength')) {
+          El nombre no debe superar los {{ nameMaxLength }} caracteres.
+        } @else if (form.controls.name.hasError('server')) {
+          {{ fieldErrors().name }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-patient-form__field" appearance="outline">
+      <mat-label>Cédula</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="cedula"
+        autocomplete="off"
+        inputmode="numeric"
+        (input)="onCedulaInput($event)"
+        required
+      />
+      <mat-hint>Formato 000-0000000-0 (11 dígitos).</mat-hint>
+      <mat-error>
+        @if (form.controls.cedula.hasError('required')) {
+          Ingresa la cédula
+        } @else if (form.controls.cedula.hasError('cedula')) {
+          La cédula debe tener 11 dígitos.
+        } @else if (form.controls.cedula.hasError('server')) {
+          {{ fieldErrors().cedula }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-patient-form__field" appearance="outline">
+      <mat-label>Tipo de paciente</mat-label>
+      <mat-select formControlName="patientType" required>
+        @for (type of patientTypes; track type) {
+          <mat-option [value]="type">{{ label(type) }}</mat-option>
+        }
+      </mat-select>
+      <mat-error>
+        @if (form.controls.patientType.hasError('server')) {
+          {{ fieldErrors().patientType }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-patient-form__field" appearance="outline">
+      <mat-label>Carnet</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="carnet"
+        autocomplete="off"
+        [attr.maxlength]="carnetMaxLength"
+      />
+      <mat-hint>Hasta {{ carnetMaxLength }} caracteres. Obligatorio para estudiantes.</mat-hint>
+      <mat-error>
+        @if (form.controls.carnet.hasError('required')) {
+          Ingresa el carnet del estudiante
+        } @else if (form.controls.carnet.hasError('maxlength')) {
+          El carnet no debe superar los {{ carnetMaxLength }} caracteres.
+        } @else if (form.controls.carnet.hasError('server')) {
+          {{ fieldErrors().carnet }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    @if (!isEdit) {
+      <mat-checkbox class="dm-patient-form__active" formControlName="isActive">
+        Paciente activo
+      </mat-checkbox>
+    }
+
+    @if (loadingPatient()) {
+      <p class="dm-patient-form__loading" role="status">Cargando paciente…</p>
+    }
+
+    @if (error()) {
+      <p class="dm-patient-form__error" role="alert">{{ error() }}</p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancelar</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="dm-patient-form"
+    [disabled]="submitting() || loadingPatient()"
+  >
+    @if (submitting()) {
+      Guardando…
+    } @else {
+      {{ isEdit ? 'Guardar cambios' : 'Crear paciente' }}
+    }
+  </button>
+</mat-dialog-actions>
