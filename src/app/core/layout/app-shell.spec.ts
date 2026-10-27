@@ -517,43 +517,51 @@ describe('AppShell', () => {
       expect(document.activeElement).toBe(logout);
     });
 
-    describe('ítem «Usuarios» solo ADMIN (F-006 CA-09)', () => {
-      it('sin sesión muestra Inicio/Tipos de fármacos/Marcas/Ubicaciones pero no Usuarios', () => {
+    describe('ítem «Usuarios» solo ADMIN (F-006 CA-09), «Médicos» solo ADMIN (F-014 S11) y «Visitas» ambos roles (F-015 S15)', () => {
+      it('sin sesión muestra Inicio/Tipos de fármacos/Marcas/Ubicaciones/Medicamentos/Pacientes/Visitas pero no Médicos ni Usuarios', () => {
         const { host } = createShell(true);
 
         const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
 
-        expect(links).toHaveLength(5);
+        expect(links).toHaveLength(7);
         expect(links[0].textContent).toContain('Inicio');
         expect(links[1].textContent).toContain('Tipos de fármacos');
         expect(links[2].textContent).toContain('Marcas');
         expect(links[3].textContent).toContain('Ubicaciones');
         expect(links[4].textContent).toContain('Medicamentos');
+        expect(links[5].textContent).toContain('Pacientes');
+        expect(links[6].textContent).toContain('Visitas');
+        expect(links[6].getAttribute('href')).toBe('/visits');
+        expect(host.textContent).not.toContain('Médicos');
         expect(host.textContent).not.toContain('Usuarios');
       });
 
-      it('con sesión MEDICO muestra Inicio, Tipos de fármacos, Marcas y Ubicaciones, no Usuarios', () => {
+      it('con sesión MEDICO muestra Inicio, Tipos de fármacos, Marcas, Ubicaciones, Medicamentos, Pacientes y Visitas, no Médicos ni Usuarios', () => {
         seedSession('medico.demo', 'MEDICO');
         const { host } = createShell(true);
 
         const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
 
-        expect(links).toHaveLength(5);
+        expect(links).toHaveLength(7);
         expect(links[0].textContent).toContain('Inicio');
         expect(links[1].textContent).toContain('Tipos de fármacos');
         expect(links[2].textContent).toContain('Marcas');
         expect(links[3].textContent).toContain('Ubicaciones');
         expect(links[4].textContent).toContain('Medicamentos');
+        expect(links[5].textContent).toContain('Pacientes');
+        expect(links[6].textContent).toContain('Visitas');
+        expect(links[6].getAttribute('href')).toBe('/visits');
+        expect(host.textContent).not.toContain('Médicos');
         expect(host.textContent).not.toContain('Usuarios');
       });
 
-      it('con sesión ADMIN muestra Inicio, Tipos de fármacos, Marcas y Usuarios con su ruta', () => {
+      it('con sesión ADMIN muestra Inicio, Tipos de fármacos, Marcas, Ubicaciones, Medicamentos, Pacientes, Médicos, Visitas y Usuarios con su ruta', () => {
         seedSession('admin.demo', 'ADMIN');
         const { host } = createShell(true);
 
         const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
 
-        expect(links).toHaveLength(6);
+        expect(links).toHaveLength(9);
         expect(links[0].textContent).toContain('Inicio');
         expect(links[1].textContent).toContain('Tipos de fármacos');
         expect(links[1].getAttribute('href')).toBe('/drug-types');
@@ -563,8 +571,15 @@ describe('AppShell', () => {
         expect(links[3].getAttribute('href')).toBe('/locations');
         expect(links[4].textContent).toContain('Medicamentos');
         expect(links[4].getAttribute('href')).toBe('/medications');
-        expect(links[5].textContent).toContain('Usuarios');
-        expect(links[5].getAttribute('href')).toBe('/users');
+        expect(links[5].textContent).toContain('Pacientes');
+        expect(links[5].getAttribute('href')).toBe('/patients');
+        // «Médicos» va inmediatamente antes de «Visitas» y «Usuarios» (F-014 S11, F-015 S15).
+        expect(links[6].textContent).toContain('Médicos');
+        expect(links[6].getAttribute('href')).toBe('/doctors');
+        expect(links[7].textContent).toContain('Visitas');
+        expect(links[7].getAttribute('href')).toBe('/visits');
+        expect(links[8].textContent).toContain('Usuarios');
+        expect(links[8].getAttribute('href')).toBe('/users');
       });
 
       it('con sesión ADMIN el enlace a Usuarios cierra el off-canvas al navegar', () => {

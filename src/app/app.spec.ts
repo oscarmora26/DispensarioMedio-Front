@@ -95,13 +95,13 @@ describe('App', () => {
       expect(login.component).toBeUndefined();
     });
 
-    it('monta el shell en la ruta padre protegida con Home, drug-types, brands, locations, medications y users como hijas (F-006 CA-01, F-009 S6, F-010 S6, F-011 S6, F-012 S6)', () => {
+    it('monta el shell en la ruta padre protegida con Home, drug-types, brands, locations, medications, patients, doctors, visits, visits/:id y users como hijas (F-006 CA-01, F-009 S6, F-010 S6, F-011 S6, F-012 S6, F-013 S9, F-014 S10, F-015 S15)', () => {
       const root = routes[1];
 
       expect(root.path).toBe('');
       expect(root.component).toBe(AppShell);
       expect(root.canActivate).toEqual([authGuard]);
-      expect(root.children?.length).toBe(6);
+      expect(root.children?.length).toBe(10);
       expect(root.children?.[0].path).toBe('');
       expect(typeof root.children?.[0].loadComponent).toBe('function');
     });
@@ -144,8 +144,46 @@ describe('App', () => {
       expect(medications?.component).toBeUndefined();
     });
 
+    it('declara /patients como hija lazy del shell sin adminGuard (F-013 S9/S10)', () => {
+      const patients = routes[1].children?.[5];
+
+      expect(patients?.path).toBe('patients');
+      expect(patients?.canActivate).toBeUndefined();
+      expect(typeof patients?.loadComponent).toBe('function');
+      expect(patients?.component).toBeUndefined();
+    });
+
+    it('declara /doctors como hija lazy con adminGuard dentro del shell (F-014 S10/S11)', () => {
+      const doctors = routes[1].children?.[6];
+
+      expect(doctors?.path).toBe('doctors');
+      expect(doctors?.canActivate).toEqual([adminGuard]);
+      expect(typeof doctors?.loadComponent).toBe('function');
+      expect(doctors?.component).toBeUndefined();
+    });
+
+    it('declara /visits como hija lazy del shell sin adminGuard (F-015 S15/S11)', () => {
+      const visits = routes[1].children?.[7];
+
+      expect(visits?.path).toBe('visits');
+      // Sin `adminGuard`: ADMIN y MEDICO entran al listado; el MEDICO solo ve
+      // sus propias visitas y no tiene controles de escritura en el DOM.
+      expect(visits?.canActivate).toBeUndefined();
+      expect(typeof visits?.loadComponent).toBe('function');
+      expect(visits?.component).toBeUndefined();
+    });
+
+    it('declara /visits/:id como hija lazy del shell sin adminGuard (F-015 S9/S15)', () => {
+      const detail = routes[1].children?.[8];
+
+      expect(detail?.path).toBe('visits/:id');
+      expect(detail?.canActivate).toBeUndefined();
+      expect(typeof detail?.loadComponent).toBe('function');
+      expect(detail?.component).toBeUndefined();
+    });
+
     it('declara users como hija lazy con adminGuard dentro del shell (F-006 CA-01)', () => {
-      const users = routes[1].children?.[5];
+      const users = routes[1].children?.[9];
 
       expect(users?.path).toBe('users');
       expect(users?.canActivate).toEqual([adminGuard]);

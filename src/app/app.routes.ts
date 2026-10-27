@@ -41,6 +41,27 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'patients',
+        loadComponent: () =>
+          import('./features/patients/patient-list/patient-list').then((m) => m.PatientList),
+      },
+      {
+        path: 'doctors',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/doctors/doctor-list/doctor-list').then((m) => m.DoctorList),
+      },
+      {
+        path: 'visits',
+        loadComponent: () =>
+          import('./features/visits/visit-list/visit-list').then((m) => m.VisitList),
+      },
+      {
+        path: 'visits/:id',
+        loadComponent: () =>
+          import('./features/visits/visit-detail/visit-detail').then((m) => m.VisitDetail),
+      },
+      {
         path: 'users',
         canActivate: [adminGuard],
         loadComponent: () => import('./features/users/user-list/user-list').then((m) => m.UserList),
