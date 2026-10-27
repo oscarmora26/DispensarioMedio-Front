@@ -767,6 +767,55 @@ Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico
 - 2026-10-25 — team-lead: pasa a `in_progress`.
 - 2026-10-27 — team-lead: implementación completada en `19b72a6` (modelo, servicio y mapeo de errores) y `576dfc1` (listado, diálogos, confirmación, toasts, ruta y menú); reviewer (T5) da **PASS por S1..S10** con 312 tests, sin defectos de producción; checks verdes: 312 tests, `lint`, `build` y `features:validate` (9 features); documentación del módulo en `docs/DRUG-TYPES.md`. Feature a `done`.
 
+### F-010 — Módulo para gestionar marcas
+
+- **Estado:** done
+- **Prioridad:** Alta
+- **Aprobado por:** Oscar Mora
+- **Fecha de aprobación:** 2026-10-27
+- **Dependencias:** F-009 (patrón CRUD de tipos de fármacos), API `/api/v1/brands` (Sprint 3, US-16)
+
+**Descripción**
+
+CRUD del catálogo de marcas (RF-05, US-16) siguiendo el criterio estándar CA-CRUD (doc 01 §7). Es el segundo catálogo maestro de la épica E2 y reutiliza el patrón fijado por F-009 (tipos de fármacos): mismos componentes, mismos contratos, mismos textos salvo el nombre del recurso. Ruta `/brands` dentro del shell con carga lazy; ítem «Marcas» en el menú, visible para ADMIN y MEDICO.
+
+Contrato verificado contra el OpenAPI vivo (2026-10-27):
+
+- `GET /api/v1/brands`: `page` ≥1, `size` 1-100 (por defecto 20), `search` ≤100 parcial en `description`, `is_active`, `sort` ∈ `description|created_at|is_active|id` con prefijo `-` (por defecto `description`). Respuesta `items/total/page/size/pages`.
+- `POST /brands`: `description` requerida (1-100), `is_active` opcional (por defecto `true`); `201`; `409` en duplicado.
+- `GET/PUT/DELETE /brands/{id}`: PUT = reemplazo completo conservando `created_at`; DELETE = desactivación lógica (`is_active: false`), nunca borrado físico.
+
+Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico muestra la tabla sin acciones de escritura (sin «Nuevo», «Editar» ni «Desactivar»); el backend devuelve `403` como red de seguridad.
+
+**Criterios de aceptación**
+
+- [x] CA-01 Listado con paginación 100% servidor: cada cambio de página/tamaño/búsqueda/filtro/orden emite un `GET` y resetea a página 1 cuando cambia el criterio; opciones 10/20/50, por defecto 20; el total mostrado es el `total` del servidor. Carga contenida en la región de la tabla sin parpadeo ni pérdida de foco (patrón F-007/F-008/F-009).
+- [x] CA-02 Crear: diálogo con `description` requerida (1-100, trim); `201` cierra con toast de éxito y refresca; `409` duplicado marca error de campo en español; `422` marca errores por campo sin exponer mensajes crudos del backend.
+- [x] CA-03 Editar: diálogo precargado con `GET /{id}`; `200` conserva `created_at`; mismas validaciones y toasts que crear. Cancelar/Escape/backdrop cierra sin efectos.
+- [x] CA-04 Desactivar/Activar con confirmación explícita; DELETE desactiva y reactivar reenvía el registro con `is_active: true` en el PUT de reemplazo completo; nunca borrado físico.
+- [x] CA-05 Permisos: MEDICO ve menú y tabla en solo lectura (cero controles de escritura en el DOM, no solo deshabilitados); ADMIN ve el CRUD completo. La ruta es accesible para ambos roles autenticados.
+- [x] CA-06 Estados de UI completos: loading, vacío («No hay marcas para mostrar.»), error con reintento y avisos por toast centralizado; validaciones y mensajes en español a nivel de campo; accesibilidad AA.
+- [x] CA-07 Diseño: solo tokens `--dm-*`, sin hex literales, sin `::ng-deep`; badge de estado con los chips AA del sistema; `@include dm.dm-focus-ring`; tabla con scroll horizontal contenido en <768px.
+- [x] CA-08 `done` requiere: PASS del reviewer, `npm run lint`, `npm test`, `npm run build` y `features:validate` en verde; documentación actualizada.
+
+**Tareas**
+
+- [x] T-010-01 Modelo y servicio `brands.service.ts` siguiendo `drug-types.service.ts`/`drug-types-error.ts`.
+- [x] T-010-02 Listado `brand-list`: tabla, búsqueda con `debounceTime(300)`, filtro de estado, paginador y sort servidor, loading contenido, vacío y error con reintento.
+- [x] T-010-03 Diálogos crear/editar y confirmación de activar/desactivar; toasts centralizados.
+- [x] T-010-04 Ruta lazy `/brands` en el shell + ítem de menú visible para ambos roles + ocultamiento de acciones de escritura para MEDICO.
+- [x] T-010-05 Documentación del módulo + handoff a reviewer.
+
+**Preguntas abiertas**
+
+- **PQ-01** — RESUELTA (2026-10-25, Oscar Mora): regla del tres. Con F-010/F-011 se evalúa la extracción a `shared/`.
+
+**Historial**
+
+- 2026-10-27 — spec: feature creada (patrón F-009).
+
+
+- 2026-10-27 — Implementación completa (5b2e7b9): models/service/error/toast/list/form/confirm + ruta + nav. Reviewer PASS S1..S10, 413 tests verdes, lint, build, features:validate. docs/BRANDS.md. Cierre done.
 ## Plantilla
 
 ```md
