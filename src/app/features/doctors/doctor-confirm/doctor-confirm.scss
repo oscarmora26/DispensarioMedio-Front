@@ -1,0 +1,9 @@
+@use '../../../../styles/tokens' as dm;
+
+// Confirmación de activar/desactivar médico: sin colores literales.
+.dm-doctor-confirm__text {
+  margin: 0;
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}

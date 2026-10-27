@@ -1,0 +1,132 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar médico' : 'Nuevo médico' }}</h2>
+
+<mat-dialog-content>
+  <form
+    id="dm-doctor-form"
+    class="dm-doctor-form__form"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    novalidate
+    [attr.aria-busy]="submitting() || loadingDoctor()"
+  >
+    <mat-form-field class="dm-doctor-form__field" appearance="outline">
+      <mat-label>Nombre completo</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="name"
+        autocomplete="off"
+        [attr.maxlength]="nameMaxLength"
+        required
+      />
+      <mat-hint>Entre 1 y {{ nameMaxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.name.hasError('required')) {
+          Ingresa el nombre
+        } @else if (form.controls.name.hasError('maxlength')) {
+          El nombre no debe superar los {{ nameMaxLength }} caracteres.
+        } @else if (form.controls.name.hasError('server')) {
+          {{ fieldErrors().name }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-doctor-form__field" appearance="outline">
+      <mat-label>Cédula</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="cedula"
+        autocomplete="off"
+        inputmode="numeric"
+        (input)="onCedulaInput($event)"
+        required
+      />
+      <mat-hint>Formato 000-0000000-0 (11 dígitos).</mat-hint>
+      <mat-error>
+        @if (form.controls.cedula.hasError('required')) {
+          Ingresa la cédula
+        } @else if (form.controls.cedula.hasError('cedula')) {
+          La cédula debe tener 11 dígitos.
+        } @else if (form.controls.cedula.hasError('server')) {
+          {{ fieldErrors().cedula }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-doctor-form__field" appearance="outline">
+      <mat-label>Tanda</mat-label>
+      <mat-select formControlName="labShift" required>
+        @for (shift of shiftOptions(); track shift) {
+          <mat-option [value]="shift">{{ label(shift) }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Matutina, Vespertina, Nocturna o Mixta.</mat-hint>
+      <mat-error>
+        @if (form.controls.labShift.hasError('required')) {
+          Selecciona la tanda
+        } @else if (form.controls.labShift.hasError('server')) {
+          {{ fieldErrors().labShift }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-doctor-form__field" appearance="outline">
+      <mat-label>Especialidad</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="specialty"
+        autocomplete="off"
+        [attr.maxlength]="specialtyMaxLength"
+        required
+      />
+      <mat-hint>Entre 1 y {{ specialtyMaxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.specialty.hasError('required')) {
+          Ingresa la especialidad
+        } @else if (form.controls.specialty.hasError('maxlength')) {
+          La especialidad no debe superar los {{ specialtyMaxLength }} caracteres.
+        } @else if (form.controls.specialty.hasError('server')) {
+          {{ fieldErrors().specialty }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    @if (isEdit) {
+      <p class="dm-doctor-form__hint">
+        La cuenta asociada se gestiona en Usuarios; este formulario no la modifica.
+      </p>
+    }
+
+    @if (!isEdit) {
+      <mat-checkbox class="dm-doctor-form__active" formControlName="isActive">
+        Médico activo
+      </mat-checkbox>
+    }
+
+    @if (loadingDoctor()) {
+      <p class="dm-doctor-form__loading" role="status">Cargando médico…</p>
+    }
+
+    @if (error()) {
+      <p class="dm-doctor-form__error" role="alert">{{ error() }}</p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancelar</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="dm-doctor-form"
+    [disabled]="submitting() || loadingDoctor()"
+  >
+    @if (submitting()) {
+      Guardando…
+    } @else {
+      {{ isEdit ? 'Guardar cambios' : 'Crear médico' }}
+    }
+  </button>
+</mat-dialog-actions>
