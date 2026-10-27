@@ -911,6 +911,209 @@ Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta.
 - 2026-10-27 — Limpieza de specs de medicamentos: adaptación de catálogos (drug-types/brands/locations), género y mensajes de error; 96 tests verdes, lint, build, features:validate OK.
 - 2026-10-27 — **Cambio de contrato del backend**: body POST/PUT, respuesta, filtro de listado, `sort` y `422` pasan de `location_id` a `cell_id`; `MedicationRead` deja de devolver `created_at` (queda opcional y no se muestra); `cell_id` referencia `cells.id` (`fk_medications_location_id_cells`). Renombrado el dominio completo (`cellId`/`cell_id`), la «Ubicación» del medicamento pasó a celdas vía `LocationsService.listAllCells()` y cada catálogo del `forkJoin` se aisló con `catchError` para corregir el reporte «al agregar o actualizar un medicamento no carga tipo, marca ni ubicación». Verificación: 108 tests de la feature, suite completa 645, lint, build y `features:validate` en verde.
 
+### F-013 — Módulo para gestionar pacientes
+
+- **Estado:** done
+- **Prioridad:** Alta
+- **Aprobado por:** Oscar Mora
+- **Fecha de aprobación:** 2026-10-27
+- **Dependencias:** F-001 (design system y shell), API `/api/v1/patients`
+
+**Descripción**
+
+CRUD del catálogo de pacientes (RF-05, US-16) siguiendo el criterio estándar CA-CRUD (doc 01 §7) y el patrón ya establecido por F-009/F-010/F-011. Campos: `name`, `cedula`, `carnet`, `patient_type`, `is_active`. Ruta `/patients` dentro del shell con carga lazy; ítem «Pacientes» en el menú, visible para ADMIN y MEDICO.
+
+Alcance aprobado: **solo el catálogo de pacientes**. Fuera de alcance: historia clínica, visitas, consultas y cualquier dato clínico.
+
+Contrato verificado contra el OpenAPI vivo (2026-10-27):
+
+- `GET /api/v1/patients`: `page` ≥1, `size` 1-100 (por defecto 20), `search` ≤100 parcial y case-insensitive en `name`, `cedula` o `carnet`, `is_active`, `sort` ∈ `name|cedula|created_at|is_active|id` con prefijo `-` (por defecto `name`). Respuesta `items/total/page/size/pages`. Accesible para ADMIN y MEDICO.
+- `PatientRead`: seis campos planos `id`, `name`, `cedula`, `carnet` (`string|null`), `patient_type`, `is_active`. **No devuelve `created_at`** aunque lo acepte como criterio de orden.
+- `POST /api/v1/patients`: `name` (1..150), `cedula` y `patient_type` requeridos; `carnet` (≤50) opcional; `is_active` opcional (por defecto `true`); `201`; `409` si la cédula ya existe o si el carnet ya existe; `422` de validación. Solo ADMIN.
+- `GET /api/v1/patients/{id}`: `200` (también si está inactivo) o `404`.
+- `PUT /api/v1/patients/{id}`: reemplazo completo de `name` + `cedula` + `patient_type` + `is_active`; **un `carnet` ausente borra el carnet existente**; `200`; `409`; `404`; `422`. Solo ADMIN.
+- `DELETE /api/v1/patients/{id}`: desactivación lógica e **idempotente** (no borra la fila ni sus referencias); `204`; `404`. Solo ADMIN.
+
+Reglas de negocio del contrato:
+
+- **Cédula**: exactamente 11 dígitos, única.
+- **Carnet**: único cuando existe y **obligatorio para `ESTUDIANTE`**.
+- **`patient_type`**: catálogo cerrado `ESTUDIANTE`, `EMPLEADO`, `PROFESOR`, `OTROS`.
+
+Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta (tabla sin controles de escritura en el DOM).
+
+**Criterios de aceptación**
+
+- [x] CA-01 Listado con paginación 100% servidor (`page`, `size`, `search`, `is_active`, `sort`), opciones 10/20/50 y total del servidor; un solo `GET` por gesto con búsqueda debounced 300 ms.
+- [x] CA-02 Crear: `name`, `cedula` y `patient_type` requeridos; carnet opcional; `201` cierra con toast y recarga.
+- [x] CA-03 Cédula capturada y mostrada con máscara `XXX-XXXXXXX-X` (3-7-1); la validación de cliente exige exactamente 11 dígitos una vez descartados los separadores, el body envía los 11 dígitos sin máscara y el formato inválido bloquea el envío con mensaje propio.
+- [x] CA-04 Carnet alfanumérico libre de hasta 50 caracteres; obligatorio cuando `patient_type === 'ESTUDIANTE'` (validación de cliente que refleja el contrato) y opcional en el resto; campo vacío se envía como `null`.
+- [x] CA-05 `409` de cédula o carnet duplicado se muestra como error de campo propio (`cedula`/`carnet`), sin exponer el mensaje del backend.
+- [x] CA-06 Editar: diálogo precargado con `GET /{id}`; el `PUT` es reemplazo completo y borra el carnet cuando se deja vacío.
+- [x] CA-07 Desactivar/Activar con confirmación explícita; `DELETE` = desactivación lógica e idempotente, nunca borrado físico.
+- [x] CA-08 Estados de UI completos: loading contenido en la región de la tabla, vacío «No hay pacientes para mostrar.», error de carga inline con reintento, toasts de mutación.
+- [x] CA-09 Permisos: MEDICO solo lectura, cero controles de escritura en el DOM.
+- [x] CA-10 Diseño: solo tokens `--dm-*`, sin hex literales ni `::ng-deep`, `@include dm.dm-focus-ring`, accesibilidad AA y tabla con scroll horizontal <768px.
+- [x] CA-11 `npm run features:validate` reporta `OK` y `docs/PATIENTS.md` documenta el contrato, las validaciones y los permisos.
+- [x] CA-12 `done` requiere PASS del reviewer, `npm run lint`, `npm test`, `npm run build` y `npm run features:validate`.
+
+**Tareas**
+
+- [x] T-013-01 Modelo `patients.models.ts` (`Patient`, DTOs `snake_case`, `toPatient`, `toPatientListPage`, `toPatientPayload`), servicio `patients.service.ts` (`list`/`getById`/`create`/`update`/`deactivate`/`reactivate`) y `patients-error.ts`.
+- [x] T-013-02 Listado `patient-list.{ts,html,scss}`: tabla (nombre, cédula, carnet, tipo, estado, acciones), búsqueda, filtro de estado, orden, paginación de servidor, estados de carga/vacío/error.
+- [x] T-013-03 Diálogos crear/editar con validación de cédula (11 dígitos) y carnet condicional, confirmación de activar/desactivar y `patients-toast.ts`.
+- [x] T-013-04 Ruta lazy `/patients`, ítem de menú para ambos roles y escritura oculta a MEDICO.
+- [x] T-013-05 Documentación `docs/PATIENTS.md`, specs completas y cierre con los cinco checks en verde.
+
+**Preguntas abiertas**
+
+Ninguna. Resueltas por el humano el 2026-10-27:
+
+- **Cédula:** se captura y se muestra enmascarada como `XXX-XXXXXXX-X`; se envía al backend sin separadores (11 dígitos). No se valida dígito verificador, solo los 11 dígitos que exige el contrato.
+- **Carnet:** alfanumérico libre de hasta 50 caracteres, tal cual lo define el contrato; único cuando existe y obligatorio para `ESTUDIANTE`.
+- **`patient_type`:** `mat-select` con etiquetas capitalizadas (Estudiante, Empleado, Profesor, Otros) enviando el valor en mayúsculas que espera el backend.
+- **Nombre:** un único campo `name` (el contrato no separa nombres y apellidos).
+
+**Historial**
+
+- 2026-10-27 — spec-author: feature creada en `proposed` a partir del OpenAPI vivo; pendiente de aprobación humana.
+- 2026-10-27 — humano: aprobó F-013 en sesión y fijó cédula con máscara `XXX-XXXXXXX-X` y carnet alfanumérico libre (máx. 50). team-lead transcribió el aprobador (`Oscar Mora`) y la fecha a solicitud explícita; el estado `approved` lo fijó el humano.
+- 2026-10-27 — team-lead: feature movida a `in_progress` y despachada al implementer.
+- 2026-10-27 — implementer: T-013-01..05 completadas. `patients.models.ts` con máscara `XXX-XXXXXXX-X` (`formatCedula`/`cedulaDigits`/`isCedulaComplete`), `patients.service.ts`, `patients-error.ts` (409 por `code`: `patient_exists`→`cedula`, `patient_carnet_exists`→`carnet`), `patients-toast.ts`, `patient-list`, `patient-form` (máscara con conservación de cursor, carnet condicional revalidado al cambiar el tipo), `patient-confirm`, ruta lazy `/patients`, ítem «Pacientes», `docs/PATIENTS.md`. 135 tests de la feature.
+- 2026-10-27 — team-lead/reviewer: **PASS**. Se actualizaron las dos specs estructurales que fijan rutas y navegación (`app.spec.ts`: 6→7 hijas, `patients` en el índice 5 y `users` en el 6; `app-shell.spec.ts`: 6/6/7 enlaces con «Pacientes» antes de «Usuarios»). Verificación final: `npm test` 45 archivos / **806 tests** verdes, `npm run lint`, `npm run build`, `npm run features:validate` (13 features) y Prettier sobre los archivos tocados, todos en verde.
+
+### F-014 — Módulo para gestionar médicos
+
+- **Estado:** done
+- **Prioridad:** Alta
+- **Aprobado por:** Oscar Mora
+- **Fecha de aprobación:** 2026-10-27
+- **Dependencias:** F-001 (design system y shell), F-006 (usuarios, para la asociación usuario-médico), API `/api/v1/doctors`
+
+**Descripción**
+
+CRUD del catálogo de médicos (RF-04, US-15) siguiendo el criterio estándar CA-CRUD (doc 01 §7) y el patrón de F-009…F-013. Campos: `name`, `cedula`, `lab_shift` (tanda), `specialty` (especialidad), `is_active`. Ruta `/doctors` dentro del shell con carga lazy.
+
+Alcance aprobado: **catálogo de médicos**. Fuera de alcance: visitas, consultas y cualquier dato clínico.
+
+Contrato verificado contra el OpenAPI vivo (2026-10-27):
+
+- `GET /api/v1/doctors`: `page` ≥1, `size` 1-100 (def. 20), `search` ≤100 parcial y case-insensitive en `name` o `cedula`, `is_active`, `sort` ∈ `name|cedula|lab_shift|specialty|created_at|is_active|id` con prefijo `-` (def. `name`). Respuesta `items/total/page/size/pages`. Un **MEDICO solo ve su propio perfil**; sin asociación obtiene una página vacía.
+- `DoctorRead`: seis campos planos `id`, `name`, `cedula`, `lab_shift`, `specialty`, `is_active`, más `user` **de solo lectura** (`DoctorUserRead { id, username, is_active } | null`) con la cuenta asociada. **No incluye `created_at`**.
+- `POST /api/v1/doctors`: `name` (1..150), `cedula` (11 dígitos, única), `lab_shift` (1..50) y `specialty` (1..100) requeridos; `is_active` opcional (def. `true`); `201`; `409` por cédula duplicada; `422`. Solo ADMIN. Un médico puede existir **sin usuario asociado**.
+- `GET /api/v1/doctors/{id}`: `200` (también si está inactivo); un MEDICO solo puede consultar su propio perfil, cualquier otro id responde `404`.
+- `PUT /api/v1/doctors/{id}`: reemplazo completo de `name` + `cedula` + `lab_shift` + `specialty` + `is_active`; `200`; `409`; `404`; `422`. **No modifica la asociación con usuarios**.
+- `DELETE /api/v1/doctors/{id}`: desactivación lógica e idempotente; `204`; `404`; **`409 doctor_has_visits`** si el médico tiene visitas registradas.
+
+La asociación usuario-médico se **lee** en `DoctorRead.user` y **no se edita** por el recurso de médicos: se define en `UserCreate.doctor_id` (opcional) y `UserUpdate.doctor_id` (obligatorio en el body, nullable), es decir en el módulo de Usuarios (F-006). El `PUT /doctors/{id}` no la modifica y un médico puede existir sin cuenta asociada.
+
+**Criterios de aceptación**
+
+- [x] CA-01 Listado con paginación 100% servidor (`page`, `size`, `search`, `is_active`, `sort`), opciones 10/20/50 y total del servidor; un solo `GET` por gesto con búsqueda debounced 300 ms.
+- [x] CA-02 Crear: `name`, `cedula`, `lab_shift` y `specialty` requeridos; `201` cierra con toast y recarga.
+- [x] CA-03 Cédula con máscara `XXX-XXXXXXX-X` (misma regla que F-013 CA-03): validación de 11 dígitos y body sin máscara.
+- [x] CA-04 `409` de cédula duplicada se muestra como error de campo propio, sin exponer el mensaje del backend.
+- [x] CA-05 Editar: diálogo precargado con `GET /{id}`; el `PUT` es reemplazo completo y no altera la asociación con usuarios.
+- [x] CA-06 Desactivar/Activar con confirmación explícita; `DELETE` lógico e idempotente y `409 doctor_has_visits` traducido a «No se puede desactivar el médico porque tiene visitas registradas.».
+- [x] CA-07 Asociación usuario-médico: el listado muestra una columna «Usuario» con `user.username` o «Sin usuario» cuando `user` es `null`, tomada de `DoctorRead.user`; es de solo lectura y el formulario no la edita (`PUT /doctors/{id}` no la toca).
+- [x] CA-08 Tanda como `mat-select` cerrado de cuatro opciones (Matutina, Vespertina, Nocturna, Mixta) que envía `MATUTINA|VESPERTINA|NOCTURNA|MIXTA`; si un registro existente trae otro valor, ese valor se conserva como opción adicional para no perderlo al editar. Especialidad como texto libre de 1 a 100 caracteres.
+- [x] CA-09 Estados de UI completos: loading contenido en la región de la tabla, vacío «No hay médicos para mostrar.», error de carga inline con reintento, toasts de mutación.
+- [x] CA-10 Permisos: escritura solo ADMIN; el ítem «Médicos» del menú y la ruta `/doctors` son solo para ADMIN (`adminGuard`), igual que Usuarios. El perfil propio del MEDICO queda fuera de esta entrega aunque el backend lo permita.
+- [x] CA-11 Diseño: solo tokens `--dm-*`, sin hex literales ni `::ng-deep`, `@include dm.dm-focus-ring`, accesibilidad AA y tabla con scroll horizontal <768px.
+- [x] CA-12 `docs/DOCTORS.md`, `npm run features:validate` en `OK` y `done` con PASS del reviewer, `lint`, `test`, `build` y `features:validate` en verde.
+
+**Tareas**
+
+- [x] T-014-01 Modelo `doctors.models.ts`, servicio `doctors.service.ts` y `doctors-error.ts`.
+- [x] T-014-02 Listado `doctor-list.{ts,html,scss}` con búsqueda, filtro de estado, orden y paginación de servidor.
+- [x] T-014-03 Diálogos crear/editar, confirmación de activar/desactivar y `doctors-toast.ts`.
+- [x] T-014-04 Ruta lazy `/doctors`, ítem de menú y permisos por rol.
+- [x] T-014-05 Documentación, specs y cierre con los cinco checks en verde.
+
+**Preguntas abiertas**
+
+Ninguna. Resueltas por el humano el 2026-10-27:
+
+- **PQ-01 — Asociación usuario-médico:** el humano modificó la entidad `doctors` en el backend y el contrato re-verificado ya expone `DoctorRead.user` (`DoctorUserRead`). Se muestra como columna de solo lectura; la asignación sigue en el módulo de Usuarios.
+- **PQ-02 — Tanda:** `mat-select` cerrado de cuatro tandas (Matutina, Vespertina, Nocturna, Mixta) enviando el valor en mayúsculas; los valores no canónicos de registros existentes se preservan como opción adicional al editar.
+- **PQ-03 — Especialidad:** texto libre de 1 a 100 caracteres, como define el contrato.
+- **PQ-04 — Alcance del rol MEDICO:** el ítem «Médicos» y la ruta quedan solo para ADMIN; el perfil propio del médico no entra en esta entrega.
+
+**Historial**
+
+- 2026-10-27 — spec-author: feature creada en `proposed` a partir del OpenAPI vivo; pendiente de aprobación humana y de resolver PQ-01…PQ-04.
+- 2026-10-27 — humano: instruyó implementar F-014 en sesión y resolvió PQ-01…PQ-04. team-lead transcribió el aprobador (`Oscar Mora`) y la fecha a partir de esa instrucción; el estado `approved` se fijó por decisión humana explícita. Re-verificado el contrato: `DoctorRead.user` ya expone la cuenta asociada tras el cambio en el backend.
+- 2026-10-27 — team-lead: feature movida a `in_progress` y despachada al implementer.
+- 2026-10-27 — implementer: T-014-01..05 completadas. `doctors.models.ts` (incluye `DoctorUser` y `labShiftOptions` que preserva un `lab_shift` no canónico), `doctors.service.ts`, `doctors-error.ts` (`doctor_has_visits` traducido), `doctors-toast.ts`, `doctor-list` con columna «Usuario» de solo lectura, `doctor-form` (máscara de cédula reutilizada de F-013 y select cerrado de tandas), `doctor-confirm`, ruta lazy `/doctors` con `adminGuard`, ítem «Médicos» solo ADMIN y `docs/DOCTORS.md`. 141 tests de la feature.
+- 2026-10-27 — team-lead/reviewer: **PASS**. Specs estructurales actualizadas junto con la ruta y el ítem nuevos (`app.spec.ts`: 8 hijas, `doctors` en el índice 6 con `adminGuard`, `users` en el 7; `app-shell.spec.ts`: 8 enlaces para ADMIN con `/doctors` antes de `/users`, y 6 para anónimo/MEDICO sin «Médicos»). Verificación final: `npm test` 52 archivos / **948 tests** verdes, `npm run lint`, `npm run build`, `npm run features:validate` (14 features) y Prettier de lo tocado, en verde.
+
+### F-015 — Módulo para gestionar visitas
+
+- **Estado:** done
+- **Prioridad:** Alta
+- **Aprobado por:** Oscar Mora
+- **Fecha de aprobación:** 2026-10-27
+- **Dependencias:** F-002 (sesión y rol), F-011 (ubicaciones/celdas), F-012 (medicamentos), F-013 (pacientes), F-014 (médicos), API `/api/v1/visits`
+
+**Descripción**
+
+Módulo de visitas (RF-08/US-21): registro de la atención de un paciente por un médico, listado con filtros combinables y paginación de servidor, edición por reemplazo completo y **anulación con motivo y auditoría**. Es el módulo más complejo de la épica porque compone paciente + médico + medicamentos entregados y agrega una máquina de estados (`REGISTRADA` → `ANULADA`, sin vuelta atrás).
+
+Contrato verificado contra el OpenAPI vivo (2026-10-27):
+
+- `GET /api/v1/visits`: `page` ≥1, `size` 1-100 (def. 20); filtros combinables `doctor_id` (solo ADMIN), `patient_id`, `date_from`/`date_to` (date-time; sin zona el backend asume UTC-4), `medication_id`, `status` ∈ `REGISTRADA|ANULADA`, `q` ≤200 parcial en síntomas o recomendaciones; `sort` ∈ `visited_at|created_at|id|status` con prefijo `-` (def. `-visited_at`). Respuesta `items/total/page/size/pages` con `VisitListItem { id, doctor{id,name}, patient{id,name,cedula}, visited_at, symptoms, status, created_by }`. Un MEDICO solo ve sus propias visitas y no puede filtrar por médico.
+- `POST /api/v1/visits`: `doctor_id` obligatorio para ADMIN y tomado del token para MEDICO; `patient_id` debe existir y estar activo; `visited_at` obligatoria y **no futura**; `symptoms` obligatorio (3..2000); `recommendations` opcional (≤2000); `medications` opcional, sin duplicados, con `{ medication_id, quantity? (>0, numérica o texto), instructions? (≤255) }`; `201`; `404` si el paciente o el medicamento no existen/están inactivos; `422`. Accesible para ADMIN y MEDICO.
+- `GET /api/v1/visits/{id}`: detalle con sus medicamentos (`VisitMedicationRead`: `medication_id`, `description`, `dose`, `quantity`, `instructions`) y, si está anulada, el motivo y la auditoría (`annulled_at`, `annulled_by`, `annulment_reason`, `status`). Un MEDICO solo accede a las propias; el resto responde `404`. **`VisitRead` viene como `additionalProperties: true`, sin esquema publicado**: el mapeo se construye desde estas descripciones y tolera campos ausentes.
+- `PUT /api/v1/visits/{id}`: reemplazo completo de `doctor_id`, `patient_id`, `visited_at`, `symptoms`, `recommendations` y `medications` (la lista enviada sustituye a la anterior); `200`; `409 visit_annulled` si la visita está anulada; `404`; `422`. Hoy el OpenAPI lo marca **solo ADMIN**: pendiente de abrirse a MEDICO (misma nota que en el `annul`).
+- `POST /api/v1/visits/{id}/annul`: body `{ reason }` obligatorio (≤500); `200` con `VisitAnnulResponse { id, status, annulled_at, annulled_by, annulment_reason }`; `409 visit_already_annulled` si ya estaba anulada (se anula una sola vez); `404`; `422`. Hoy el OpenAPI lo marca **solo ADMIN**: el frontend asume que el backend lo abrirá a MEDICO (decisión humana del 2026-10-27) y hasta entonces esas llamadas responden `403`.
+
+Máquina de estados: una visita nace `REGISTRADA` y puede pasar **una sola vez** a `ANULADA`; una visita anulada no se edita y no se vuelve a anular. No hay borrado físico.
+
+**Criterios de aceptación**
+
+- [x] CA-01 Listado con paginación 100% servidor y filtros combinables (estado, rango de fechas, paciente y búsqueda libre `q`; filtro por médico visible solo a ADMIN), un solo `GET` por gesto y reset a página 1 al cambiar criterio.
+- [x] CA-02 Registro: paciente activo, médico (obligatorio para ADMIN y ausente del body para MEDICO), `visited_at` no futura, síntomas 3..2000, recomendaciones ≤2000 y medicamentos sin duplicados; `201` cierra con toast y recarga.
+- [x] CA-03 Medicamentos de la visita: filas con medicamento, cantidad (>0, opcional) e indicaciones (≤255); sin medicamentos repetidos; se envían como `medications[]`.
+- [x] CA-04 Edición por reemplazo completo en un diálogo amplio con contenido desplazable; una visita anulada no se edita (`409 visit_annulled` traducido a mensaje propio) y el control de edición queda ausente en sus filas.
+- [x] CA-05 Anulación: exige motivo (≤500), es una sola vez, y el motivo con su auditoría (`annulled_at`, `annulled_by`) se muestra en la página de detalle. `409 visit_already_annulled` traducido a mensaje propio.
+- [x] CA-06 **Permisos invertidos por decisión humana (2026-10-27):** MEDICO registra, edita y anula sus visitas; ADMIN queda en solo lectura total (sin «Nueva visita», sin editar, sin anular) aunque conserva el filtro por médico para supervisión. El MEDICO sigue sin poder filtrar por médico. Como el médico sale del token, el formulario no tiene campo Médico y ningún body envía `doctor_id`.
+- [x] CA-07 Fechas: captura en hora local, envío en el formato que el backend interpreta como UTC-4, y validación de cliente que impide una fecha futura.
+- [x] CA-08 Estados de UI: loading contenido en la región de la tabla, vacío «No hay visitas para mostrar.», error de carga inline con reintento, toasts de mutación.
+- [x] CA-09 Diseño: solo tokens `--dm-*`, sin hex literales ni `::ng-deep`, `@include dm.dm-focus-ring`, badges de estado (REGISTRADA/ANULADA) con contraste AA, scroll horizontal contenido <768px.
+- [x] CA-10 Rutas lazy `/visits` y `/visits/:id` dentro del shell, ítem «Visitas» visible para ADMIN y MEDICO. La página de detalle muestra encabezado (paciente, médico, fecha), síntomas y recomendaciones completos, la tabla de medicamentos entregados y, si la visita está anulada, el bloque de anulación con motivo y auditoría; un `404` (visita ajena para un MEDICO) se resuelve con un estado «no encontrada» y vuelta al listado.
+- [x] CA-13 Fecha y hora estables: `visited_at` se envía como `AAAA-MM-DDTHH:mm:ss` sin zona (el backend asume UTC-4) y se muestra siempre en `America/Santo_Domingo`, no en la zona del navegador.
+- [x] CA-11 `docs/VISITS.md`, `npm run features:validate` en `OK` y `done` con PASS del reviewer, `lint`, `test`, `build` y `features:validate` en verde.
+
+**Tareas**
+
+- [x] T-015-01 Modelo `visits.models.ts` (DTOs, `toVisit`, `toVisitListPage`, `toVisitPayload`, `toAnnulPayload`, tipos de estado y helpers de fecha), servicio `visits.service.ts` y `visits-error.ts`.
+- [x] T-015-02 Listado `visit-list.{ts,html,scss}` con filtros combinables, orden y paginación de servidor.
+- [x] T-015-03 Registro y edición en diálogo amplio con editor de medicamentos y `mat-autocomplete` con búsqueda de servidor para paciente y medicamento (`mat-select` para médico).
+- [x] T-015-04 Página de detalle `/visits/:id` y diálogo de anulación con motivo obligatorio.
+- [x] T-015-05 Rutas lazy `/visits` y `/visits/:id`, ítem de menú para ambos roles y permisos por rol (editar/anular solo ADMIN).
+- [x] T-015-06 Documentación, specs y cierre con los cinco checks en verde.
+
+**Preguntas abiertas**
+
+Ninguna. Resueltas por el humano el 2026-10-27:
+
+- **PQ-01 — Formato de registro y edición:** diálogo amplio con contenido desplazable, consistente con F-009…F-014.
+- **PQ-02 — Selectores:** `mat-autocomplete` con búsqueda de servidor (debounced) para paciente y medicamento; `mat-select` para médico.
+- **PQ-03 — Detalle:** **página `/visits/:id`** con encabezado, síntomas y recomendaciones completos, tabla de medicamentos entregados y bloque de anulación con su auditoría. El humano la eligió tras revisar el inventario de la tabla: la lista no trae medicamentos ni motivo de anulación, y un MEDICO no puede verlos de otra forma.
+- **PQ-04 — Filtros:** estado, rango de fechas, paciente y búsqueda libre `q`; el filtro por médico se muestra solo a ADMIN. El filtro por medicamento queda fuera de esta entrega.
+
+**Historial**
+
+- 2026-10-27 — spec-author: feature creada en `proposed` a partir del OpenAPI vivo; pendiente de aprobación humana y de resolver PQ-01…PQ-04. Nota de contrato: `VisitRead` no publica esquema, así que el detalle se mapea desde las descripciones y tolera campos ausentes.
+- 2026-10-27 — humano: instruyó implementar F-015 en sesión y resolvió PQ-01…PQ-04 (diálogo amplio, autocompletar con búsqueda de servidor, página de detalle `/visits/:id` y filtros estado/fechas/paciente/`q`). team-lead transcribió el aprobador (`Oscar Mora`) y la fecha a partir de esa instrucción.
+- 2026-10-27 — team-lead: feature movida a `in_progress` y despachada al implementer.
+- 2026-10-27 — implementer: T-015-01..05 completadas. `visits.models.ts` con mapeo defensivo de `VisitRead` y helpers UTC-4 (`toNaiveDateTime`, `toVisitDateTime`, `formatVisitDateTime`, `isFutureVisitDateTime`), `visits.service.ts` con todo el HTTP y el `doctor_id` del POST decidido por sesión, `visits-error.ts` (`visit_annulled`, `visit_annulled_annulled`/`visit_already_annulled` con mensaje propio), `visits-toast.ts`, `visit-list` con filtros combinables, `visit-form` con autocompletar de servidor y editor de medicamentos, `visit-annul` y `visit-detail` (`/visits/:id`). 87 tests de la feature.
+- 2026-10-27 — team-lead/reviewer: **PASS**. Specs estructurales actualizadas con las rutas y el ítem nuevos (`app.spec.ts`: 10 hijas, `visits` índice 7, `visits/:id` índice 8, `users` índice 9, sin `adminGuard`; `app-shell.spec.ts`: 9 enlaces ADMIN y 7 anónimo/MEDICO con «Visitas» antes de «Usuarios»). Verificación final: `npm test` 60 archivos / **1037 tests** verdes, `npm run lint`, `npm run build`, `npm run features:validate` (15 features) y Prettier de lo tocado, en verde.
+- 2026-10-27 — rework pedido por el humano: (a) **permisos invertidos** — MEDICO registra/edita/anula y ADMIN queda en solo lectura total, con el campo Médico del formulario eliminado y `doctor_id` fuera de todos los bodies porque el médico sale del token; (b) el filtro «Médico» pasó de `mat-select` a combobox con búsqueda de servidor, y los selectores de Paciente (filtro y formulario) y Medicamento abren su panel al enfocar y filtran al escribir («search y select a la vez»). Verificado que «Desde»/«Hasta» ya eran `type="date"` con conversión a `date_from` 00:00:00 / `date_to` 23:59:59 y que la fecha de la visita ya era `datetime-local`: quedaron fijados con specs, sin rediseño. Verificación: `npm test` 60 archivos / **1050 tests** verdes, lint, build, `features:validate` (15) y Prettier en verde.
+- 2026-10-27 — correcciones de UI pedidas por el humano: (a) la tabla pierde la columna «Síntomas» y la columna «Detalle» — ahora se navega a `/visits/:id` haciendo clic en la fila, con el nombre del paciente como ancla real para teclado y lectores de pantalla; (b) «Desde»/«Hasta» pasan a `mat-datepicker` con calendario (siguen enviando `date_from` 00:00:00 y `date_to` 23:59:59); (c) «Fecha y hora de la visita» pasa de `datetime-local` a calendario Material + `mat-select` de hora y minuto, con `provideNativeDateAdapter()` local y sin dependencias nuevas; (d) se elimina el campo «Buscar visitas» y con él la clave `q` del `GET`; (e) se quita «Registrado por» del detalle. El detalle conserva la auditoría de anulación. Verificación: `npm test` 60 archivos / **1058 tests** verdes, lint, build, `features:validate` (15) y Prettier en verde.
+- 2026-10-27 — pendiente de backend: `PUT /visits/{id}` y `POST /visits/{id}/annul` siguen marcados «Solo ADMIN» en el OpenAPI; el humano confirmó que los abrirá a MEDICO. Hasta ese despliegue, editar o anular como MEDICO responde `403` con el mensaje propio de permisos.
+- 2026-10-27 — nota de contrato para el cierre: `created_by`/`annulled_by` no tienen tipo publicado y se modelan como `string | number | null` (`—` si faltan); si el backend los devolviera como objeto usuario habría que mapear `username`. Pendiente de confirmar con una respuesta real de `GET /visits/{id}`.
+
 ## Plantilla
 
 ```md
