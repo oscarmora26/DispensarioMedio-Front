@@ -14,6 +14,7 @@ import { UserList } from './features/users/user-list/user-list';
 
 const LOGIN_URL = `${environment.apiUrl}/v1/auth/login`;
 const USERS_URL = `${environment.apiUrl}/v1/users`;
+const DRUG_TYPES_URL = `${environment.apiUrl}/v1/drug-types`;
 
 let activeHttpMock: HttpTestingController | null = null;
 
@@ -94,19 +95,30 @@ describe('App', () => {
       expect(login.component).toBeUndefined();
     });
 
-    it('monta el shell en la ruta padre protegida con Home y users como hijas (F-006 CA-01)', () => {
+    it('monta el shell en la ruta padre protegida con Home, drug-types y users como hijas (F-006 CA-01, F-009 S6)', () => {
       const root = routes[1];
 
       expect(root.path).toBe('');
       expect(root.component).toBe(AppShell);
       expect(root.canActivate).toEqual([authGuard]);
-      expect(root.children?.length).toBe(2);
+      expect(root.children?.length).toBe(3);
       expect(root.children?.[0].path).toBe('');
       expect(typeof root.children?.[0].loadComponent).toBe('function');
     });
 
+    it('declara /drug-types como hija lazy del shell sin adminGuard (F-009 S6/S7)', () => {
+      const drugTypes = routes[1].children?.[1];
+
+      expect(drugTypes?.path).toBe('drug-types');
+      // Sin `adminGuard`: la ruta es alcanzable por ADMIN y MEDICO (solo el
+      // backend limita la escritura con 403 a MEDICO, S7/PQ-02).
+      expect(drugTypes?.canActivate).toBeUndefined();
+      expect(typeof drugTypes?.loadComponent).toBe('function');
+      expect(drugTypes?.component).toBeUndefined();
+    });
+
     it('declara users como hija lazy con adminGuard dentro del shell (F-006 CA-01)', () => {
-      const users = routes[1].children?.[1];
+      const users = routes[1].children?.[2];
 
       expect(users?.path).toBe('users');
       expect(users?.canActivate).toEqual([adminGuard]);
@@ -252,6 +264,69 @@ describe('App', () => {
       expect(router.url).toBe('/');
       expect(compiled.querySelector('dm-home')).not.toBeNull();
       expect(compiled.querySelector('dm-home')?.closest('dm-app-shell')).not.toBeNull();
+    });
+  });
+
+  describe('/drug-types por rol (F-009 S6/S7)', () => {
+    it('con sesión MEDICO renderiza dm-drug-type-list dentro del shell (consulta)', async () => {
+      const { router, auth, httpMock } = await configureApp();
+      seedSession(auth, httpMock, 'medico.demo', 'MEDICO');
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/drug-types');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      httpMock
+        .expectOne((request) => request.url === DRUG_TYPES_URL && request.method === 'GET')
+        .flush({ items: [], total: 0, page: 1, size: 20, pages: 0 });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      expect(router.url).toBe('/drug-types');
+      expect(compiled.querySelector('dm-drug-type-list')).not.toBeNull();
+      expect(compiled.querySelector('dm-drug-type-list')?.closest('dm-app-shell')).not.toBeNull();
+      // PQ-02: el médico consulta; ningún control de escritura en el DOM.
+      expect(compiled.querySelector('.dm-drug-type-list__new')).toBeNull();
+    });
+
+    it('con sesión ADMIN renderiza dm-drug-type-list dentro del shell (CRUD)', async () => {
+      const { router, auth, httpMock } = await configureApp();
+      seedSession(auth, httpMock, 'admin.demo', 'ADMIN');
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/drug-types');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      httpMock
+        .expectOne((request) => request.url === DRUG_TYPES_URL && request.method === 'GET')
+        .flush({ items: [], total: 0, page: 1, size: 20, pages: 0 });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      expect(router.url).toBe('/drug-types');
+      expect(compiled.querySelector('dm-drug-type-list')?.closest('dm-app-shell')).not.toBeNull();
+      expect(compiled.querySelector('.dm-drug-type-list__new')).not.toBeNull();
+    });
+
+    it('/drug-types sin sesión termina en /login sin instanciar la lista', async () => {
+      const { router } = await configureApp();
+      const fixture = TestBed.createComponent(App);
+
+      await router.navigateByUrl('/drug-types');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      expect(router.url.startsWith('/login?returnUrl=')).toBe(true);
+      expect(returnUrlOf(router.url)).toBe('/drug-types');
+      expect(compiled.querySelector('dm-drug-type-list')).toBeNull();
     });
   });
 

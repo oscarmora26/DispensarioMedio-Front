@@ -718,7 +718,7 @@ Fuera de alcance explícito: reset-password (`POST /users/{id}/reset-password`; 
 
 ### F-009 — Módulo para gestionar tipos de fármacos
 
-- **Estado:** in_progress
+- **Estado:** done
 - **Prioridad:** Alta
 - **Aprobado por:** Oscar Mora
 - **Fecha de aprobación:** 2026-10-25
@@ -738,22 +738,22 @@ Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico
 
 **Criterios de aceptación**
 
-- [ ] CA-01 Listado con paginación 100% servidor: cada cambio de página/tamaño/búsqueda/filtro/orden emite un `GET` y resetea a página 1 cuando cambia el criterio; opciones 10/20/50, por defecto 20; el total mostrado es el `total` del servidor. Carga contenida en la región de la tabla sin parpadeo ni pérdida de foco (patrón F-007/F-008: header/filtros montados, `aria-busy` en región).
-- [ ] CA-02 Crear: diálogo con `description` requerida (1-100, trim); `201` cierra con toast de éxito y refresca; `409` duplicado marca error de campo en español; `422` marca errores por campo sin exponer mensajes crudos del backend.
-- [ ] CA-03 Editar: diálogo precargado con `GET /{id}`; `200` conserva `created_at`; mismas validaciones y toasts que crear. Cancelar/Escape/backdrop cierra sin efectos.
-- [ ] CA-04 Desactivar/Activar con confirmación explícita; DELETE desactiva y reactivar reenvía el registro con `is_active: true` en el PUT de reemplazo completo (mismo criterio R-04 resuelto en F-006); nunca borrado físico.
-- [ ] CA-05 Permisos: MEDICO ve menú y tabla en solo lectura (cero controles de escritura en el DOM, no solo deshabilitados); ADMIN ve el CRUD completo. La ruta es accesible para ambos roles autenticados.
-- [ ] CA-06 Estados de UI completos: loading, vacío («No hay tipos de fármacos para mostrar.»), error con reintento y avisos por toast centralizado; validaciones y mensajes en español a nivel de campo; accesibilidad AA (labels, foco visible, `aria-busy`, navegación por teclado).
-- [ ] CA-07 Diseño: solo tokens `--dm-*`, sin hex literales, sin `::ng-deep`; badge de estado con los chips AA del sistema; `@include dm.dm-focus-ring` donde aplique; tabla con scroll horizontal contenido en <768px.
-- [ ] CA-08 `done` requiere: PASS del reviewer, `npm run lint`, `npm test`, `npm run build` y `features:validate` en verde; documentación actualizada (doc nuevo del módulo + menú).
+- [x] CA-01 Listado con paginación 100% servidor: cada cambio de página/tamaño/búsqueda/filtro/orden emite un `GET` y resetea a página 1 cuando cambia el criterio; opciones 10/20/50, por defecto 20; el total mostrado es el `total` del servidor. Carga contenida en la región de la tabla sin parpadeo ni pérdida de foco (patrón F-007/F-008: header/filtros montados, `aria-busy` en región).
+- [x] CA-02 Crear: diálogo con `description` requerida (1-100, trim); `201` cierra con toast de éxito y refresca; `409` duplicado marca error de campo en español; `422` marca errores por campo sin exponer mensajes crudos del backend.
+- [x] CA-03 Editar: diálogo precargado con `GET /{id}`; `200` conserva `created_at`; mismas validaciones y toasts que crear. Cancelar/Escape/backdrop cierra sin efectos.
+- [x] CA-04 Desactivar/Activar con confirmación explícita; DELETE desactiva y reactivar reenvía el registro con `is_active: true` en el PUT de reemplazo completo (mismo criterio R-04 resuelto en F-006); nunca borrado físico.
+- [x] CA-05 Permisos: MEDICO ve menú y tabla en solo lectura (cero controles de escritura en el DOM, no solo deshabilitados); ADMIN ve el CRUD completo. La ruta es accesible para ambos roles autenticados.
+- [x] CA-06 Estados de UI completos: loading, vacío («No hay tipos de fármacos para mostrar.»), error con reintento y avisos por toast centralizado; validaciones y mensajes en español a nivel de campo; accesibilidad AA (labels, foco visible, `aria-busy`, navegación por teclado).
+- [x] CA-07 Diseño: solo tokens `--dm-*`, sin hex literales, sin `::ng-deep`; badge de estado con los chips AA del sistema; `@include dm.dm-focus-ring` donde aplique; tabla con scroll horizontal contenido en <768px.
+- [x] CA-08 `done` requiere: PASS del reviewer, `npm run lint`, `npm test`, `npm run build` y `features:validate` en verde; documentación actualizada (doc nuevo del módulo + menú).
 
 **Tareas**
 
-- [ ] T-009-01 Modelo y servicio `drug-types.service.ts` (todo el HTTP del módulo, mapeo de errores 400/404/409/422 a mensajes en español) siguiendo `users.service.ts`/`users-error.ts`.
-- [ ] T-009-02 Listado `drug-type-list`: tabla (descripción, estado, acciones), búsqueda con `debounceTime(300)` + `distinctUntilChanged`, filtro de estado, paginador y sort servidor, loading contenido, vacío y error.
-- [ ] T-009-03 Diálogos crear/editar (formulario reactivo tipado, validador `server` como en login/users) y confirmación de activar/desactivar; toasts centralizados.
-- [ ] T-009-04 Ruta lazy `/drug-types` en el shell + ítem de menú visible para ambos roles + ocultamiento de acciones de escritura para MEDICO.
-- [ ] T-009-05 Documentación del módulo + handoff a reviewer (CAs + casos), sin tocar `*.spec.ts` (los escribe el reviewer).
+- [x] T-009-01 Modelo y servicio `drug-types.service.ts` (todo el HTTP del módulo, mapeo de errores 400/404/409/422 a mensajes en español) siguiendo `users.service.ts`/`users-error.ts`.
+- [x] T-009-02 Listado `drug-type-list`: tabla (descripción, estado, acciones), búsqueda con `debounceTime(300)` + `distinctUntilChanged`, filtro de estado, paginador y sort servidor, loading contenido, vacío y error.
+- [x] T-009-03 Diálogos crear/editar (formulario reactivo tipado, validador `server` como en login/users) y confirmación de activar/desactivar; toasts centralizados.
+- [x] T-009-04 Ruta lazy `/drug-types` en el shell + ítem de menú visible para ambos roles + ocultamiento de acciones de escritura para MEDICO.
+- [x] T-009-05 Documentación del módulo + handoff a reviewer (CAs + casos), sin tocar `*.spec.ts` (los escribe el reviewer).
 
 **Preguntas abiertas**
 
@@ -765,6 +765,7 @@ Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico
 - 2026-10-25 — spec-author: feature creada (tras el cierre de F-008; contrato verificado contra el OpenAPI vivo).
 - 2026-10-25 — Oscar Mora: aprobada en chat con orden explícita de registro; PQ-01 y PQ-02 resueltas.
 - 2026-10-25 — team-lead: pasa a `in_progress`.
+- 2026-10-27 — team-lead: implementación completada en `19b72a6` (modelo, servicio y mapeo de errores) y `576dfc1` (listado, diálogos, confirmación, toasts, ruta y menú); reviewer (T5) da **PASS por S1..S10** con 312 tests, sin defectos de producción; checks verdes: 312 tests, `lint`, `build` y `features:validate` (9 features); documentación del módulo en `docs/DRUG-TYPES.md`. Feature a `done`.
 
 ## Plantilla
 

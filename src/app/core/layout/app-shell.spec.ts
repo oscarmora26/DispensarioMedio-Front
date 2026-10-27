@@ -518,36 +518,41 @@ describe('AppShell', () => {
     });
 
     describe('ítem «Usuarios» solo ADMIN (F-006 CA-09)', () => {
-      it('sin sesión no muestra el enlace a Usuarios', () => {
-        const { host } = createShell(true);
-
-        const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
-
-        expect(links).toHaveLength(1);
-        expect(host.textContent).not.toContain('Usuarios');
-      });
-
-      it('con sesión MEDICO no muestra el enlace a Usuarios', () => {
-        seedSession('medico.demo', 'MEDICO');
-        const { host } = createShell(true);
-
-        const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
-
-        expect(links).toHaveLength(1);
-        expect(links[0].textContent).toContain('Inicio');
-        expect(host.textContent).not.toContain('Usuarios');
-      });
-
-      it('con sesión ADMIN muestra Inicio y Usuarios con su ruta', () => {
-        seedSession('admin.demo', 'ADMIN');
+      it('sin sesión muestra Inicio/Tipos de fármacos pero no Usuarios', () => {
         const { host } = createShell(true);
 
         const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
 
         expect(links).toHaveLength(2);
         expect(links[0].textContent).toContain('Inicio');
-        expect(links[1].textContent).toContain('Usuarios');
-        expect(links[1].getAttribute('href')).toBe('/users');
+        expect(links[1].textContent).toContain('Tipos de fármacos');
+        expect(host.textContent).not.toContain('Usuarios');
+      });
+
+      it('con sesión MEDICO muestra Inicio y Tipos de fármacos, no Usuarios', () => {
+        seedSession('medico.demo', 'MEDICO');
+        const { host } = createShell(true);
+
+        const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
+
+        expect(links).toHaveLength(2);
+        expect(links[0].textContent).toContain('Inicio');
+        expect(links[1].textContent).toContain('Tipos de fármacos');
+        expect(host.textContent).not.toContain('Usuarios');
+      });
+
+      it('con sesión ADMIN muestra Inicio, Tipos de fármacos y Usuarios con su ruta', () => {
+        seedSession('admin.demo', 'ADMIN');
+        const { host } = createShell(true);
+
+        const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link'));
+
+        expect(links).toHaveLength(3);
+        expect(links[0].textContent).toContain('Inicio');
+        expect(links[1].textContent).toContain('Tipos de fármacos');
+        expect(links[1].getAttribute('href')).toBe('/drug-types');
+        expect(links[2].textContent).toContain('Usuarios');
+        expect(links[2].getAttribute('href')).toBe('/users');
       });
 
       it('con sesión ADMIN el enlace a Usuarios cierra el off-canvas al navegar', () => {
@@ -569,6 +574,55 @@ describe('AppShell', () => {
 
         expect(usersLink).toBeDefined();
         usersLink?.click();
+        fixture.detectChanges();
+
+        expect(navigateSpy).toHaveBeenCalled();
+        expect(nav.hasAttribute('inert')).toBe(true);
+        expect(host.querySelector('.dm-shell__backdrop')).toBeNull();
+      });
+    });
+
+    describe('ítem «Tipos de fármacos» para ADMIN y MEDICO (F-009 S6/S7)', () => {
+      it('con sesión MEDICO enlaza a /drug-types', () => {
+        seedSession('medico.demo', 'MEDICO');
+        const { host } = createShell(true);
+
+        const link = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link')).find(
+          (item) => item.textContent?.includes('Tipos de fármacos'),
+        );
+
+        expect(link).toBeDefined();
+        expect(link?.getAttribute('href')).toBe('/drug-types');
+      });
+
+      it('con sesión ADMIN enlaza a /drug-types', () => {
+        seedSession('admin.demo', 'ADMIN');
+        const { host } = createShell(true);
+
+        const link = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link')).find(
+          (item) => item.textContent?.includes('Tipos de fármacos'),
+        );
+
+        expect(link).toBeDefined();
+        expect(link?.getAttribute('href')).toBe('/drug-types');
+      });
+
+      it('el enlace cierra el off-canvas al navegar (MEDICO)', () => {
+        seedSession('medico.demo', 'MEDICO');
+        const router = TestBed.inject(Router);
+        const navigateSpy = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+        const { fixture, host, nav, toggle } = createShell(false);
+
+        toggle.click();
+        fixture.detectChanges();
+        expect(nav.hasAttribute('inert')).toBe(false);
+
+        const link = Array.from(host.querySelectorAll<HTMLAnchorElement>('.dm-nav__link')).find(
+          (item) => item.textContent?.includes('Tipos de fármacos'),
+        );
+
+        expect(link).toBeDefined();
+        link?.click();
         fixture.detectChanges();
 
         expect(navigateSpy).toHaveBeenCalled();
