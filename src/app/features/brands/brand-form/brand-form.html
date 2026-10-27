@@ -1,0 +1,64 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar marca' : 'Nuevo marca' }}</h2>
+
+<mat-dialog-content>
+  <form
+    id="dm-brand-form"
+    class="dm-brand-form__form"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    novalidate
+    [attr.aria-busy]="submitting() || loadingBrand()"
+  >
+    <mat-form-field class="dm-brand-form__field" appearance="outline">
+      <mat-label>Descripción</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="description"
+        autocomplete="off"
+        [attr.maxlength]="maxLength"
+        required
+      />
+      <mat-hint>Entre 1 y {{ maxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.description.hasError('required')) {
+          Ingresa la descripción
+        } @else if (form.controls.description.hasError('maxlength')) {
+          La descripción no debe superar los {{ maxLength }} caracteres.
+        } @else if (form.controls.description.hasError('server')) {
+          {{ fieldErrors().description }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    @if (!isEdit) {
+      <mat-checkbox class="dm-brand-form__active" formControlName="isActive">
+        Marca activa
+      </mat-checkbox>
+    }
+
+    @if (loadingBrand()) {
+      <p class="dm-brand-form__loading" role="status">Cargando marca…</p>
+    }
+
+    @if (error()) {
+      <p class="dm-brand-form__error" role="alert">{{ error() }}</p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancelar</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="dm-brand-form"
+    [disabled]="submitting() || loadingBrand()"
+  >
+    @if (submitting()) {
+      Guardando…
+    } @else {
+      {{ isEdit ? 'Guardar cambios' : 'Crear marca' }}
+    }
+  </button>
+</mat-dialog-actions>

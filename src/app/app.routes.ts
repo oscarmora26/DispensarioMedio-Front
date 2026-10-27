@@ -24,6 +24,11 @@ export const routes: Routes = [
           import('./features/drug-types/drug-type-list/drug-type-list').then((m) => m.DrugTypeList),
       },
       {
+        path: 'brands',
+        loadComponent: () =>
+          import('./features/brands/brand-list/brand-list').then((m) => m.BrandList),
+      },
+      {
         path: 'users',
         canActivate: [adminGuard],
         loadComponent: () => import('./features/users/user-list/user-list').then((m) => m.UserList),

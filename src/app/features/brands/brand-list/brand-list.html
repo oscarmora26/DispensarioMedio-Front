@@ -1,0 +1,141 @@
+<section class="dm-brand-list" aria-labelledby="dm-brand-list-title">
+  <div class="dm-brand-list__header">
+    <h1 id="dm-brand-list-title" class="dm-brand-list__title">Marcas</h1>
+    @if (isAdmin()) {
+      <button mat-flat-button type="button" class="dm-brand-list__new" (click)="openCreate()">
+        <mat-icon aria-hidden="true">add</mat-icon>
+        Nuevo marca
+      </button>
+    }
+  </div>
+
+  <div class="dm-brand-list__filters">
+    <mat-form-field class="dm-brand-list__search" appearance="outline">
+      <mat-label>Buscar marcas</mat-label>
+      <input
+        matInput
+        type="search"
+        [formControl]="search"
+        aria-label="Buscar marcas por descripción"
+        maxlength="100"
+      />
+      <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field class="dm-brand-list__status-filter" appearance="outline">
+      <mat-label>Estado</mat-label>
+      <mat-select [formControl]="statusFilter">
+        <mat-option value="all">Todos</mat-option>
+        <mat-option value="active">Activos</mat-option>
+        <mat-option value="inactive">Inactivos</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="dm-brand-list__table-region" [attr.aria-busy]="loading()">
+    @if (errorMessage(); as errorMessage) {
+      <div class="dm-brand-list__error" role="alert">
+        <p class="dm-brand-list__error-message">{{ errorMessage }}</p>
+        <button
+          mat-stroked-button
+          type="button"
+          class="dm-brand-list__retry"
+          aria-label="Reintentar la carga de marcas"
+          [disabled]="loading()"
+          (click)="retry()"
+        >
+          Reintentar
+        </button>
+      </div>
+    }
+
+    @if (items().length > 0) {
+      <div class="dm-brand-list__table-wrap">
+        <table
+          mat-table
+          [dataSource]="items()"
+          matSort
+          (matSortChange)="onSort($event)"
+          [matSortActive]="sortState().active"
+          [matSortDirection]="sortState().direction"
+          aria-label="Marcas"
+          class="dm-brand-list__table"
+        >
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="description">Descripción</th>
+            <td mat-cell *matCellDef="let brand">{{ brand.description }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Estado</th>
+            <td mat-cell *matCellDef="let brand">
+              <span
+                class="dm-brand-list__status-badge"
+                [class.dm-brand-list__status-badge--inactive]="!brand.isActive"
+              >
+                {{ brand.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
+            <td mat-cell *matCellDef="let brand">
+              <button
+                mat-icon-button
+                type="button"
+                [attr.aria-label]="'Editar ' + brand.description"
+                [title]="'Editar ' + brand.description"
+                (click)="openEdit(brand)"
+              >
+                <mat-icon aria-hidden="true">edit</mat-icon>
+              </button>
+              @if (brand.isActive) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Desactivar ' + brand.description"
+                  [title]="'Desactivar ' + brand.description"
+                  (click)="confirmToggleActive(brand)"
+                >
+                  <mat-icon aria-hidden="true">block</mat-icon>
+                </button>
+              } @else {
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Activar ' + brand.description"
+                  [title]="'Activar ' + brand.description"
+                  (click)="confirmToggleActive(brand)"
+                >
+                  <mat-icon aria-hidden="true">check_circle</mat-icon>
+                </button>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
+        </table>
+      </div>
+
+      <mat-paginator
+        [length]="total()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [showFirstLastButtons]="true"
+        aria-label="Paginación de marcas"
+        (page)="onPage($event)"
+      />
+    } @else if (!loading() && !errorMessage()) {
+      <p class="dm-brand-list__empty" role="status">No hay marcas para mostrar.</p>
+    }
+
+    @if (loading()) {
+      <div class="dm-brand-list__loading">
+        <mat-progress-spinner mode="indeterminate" diameter="40" aria-label="Cargando marcas" />
+      </div>
+    }
+  </div>
+</section>
