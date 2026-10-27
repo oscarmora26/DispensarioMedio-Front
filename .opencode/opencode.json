@@ -3,5 +3,15 @@
   "default_agent": "team-lead",
   "permissions": [
     { "action": "shell", "resource": "git push *", "effect": "deny" }
-  ]
+  ],
+  "mcp": {
+    "stitch": {
+      "type": "remote",
+      "url": "https://stitch.googleapis.com/mcp",
+      "enabled": true,
+      "headers": {
+        "X-Goog-Api-Key": "{env:GOOGLE_API_KEY}"
+      }
+    }
+  }
 }

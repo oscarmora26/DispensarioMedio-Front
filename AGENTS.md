@@ -93,7 +93,6 @@ src/app/
 
 ### Reglas del flujo
 
-1. Solo el humano puede aprobar una feature (`proposed` → `approved`).
 2. El líder verifica la aprobación antes de implementar.
 3. Una sola feature `in_progress` a la vez.
 4. El reviewer no modifica código de producción.
@@ -102,6 +101,19 @@ src/app/
 7. `done` requiere `PASS` del reviewer, lint, tests y build.
 
 La fuente de verdad es `feature-list.md`. Los estados y transiciones están documentados allí.
+
+### Acuerdos para rapidez (checks reducidos)
+
+- Implementer: solo `npm run lint` + test afectado (`npm test -- <archivo>`) + `format:check` de sus archivos. No corre `build` ni suite completa salvo rutas/guards críticos.
+- Reviewer: corre el full (`npm test` completo + `build` + `features:validate`) y da el `PASS/FAIL` final.
+- `done` sigue exigiendo los 5 en verde, pero solo se corren completos una vez (en revisión).
+
+### Vía rápida para cambios pequeños
+
+- Es cambio pequeño si cumple todo: ≤2 archivos de producción, sin cambio de contrato backend, sin cambio visual global, sin nuevos endpoints/rutas, sin migración.
+- Flujo: team-lead escribe spec mínima directo en `feature-list.md` (3-4 CA, sin `spec-author`), humano aprueba, `implementer` solo `lint` + test afectado, `reviewer` hace full y da `PASS/FAIL`.
+- Si en el diagnóstico deja de ser pequeño (toca contrato, shell global o más archivos), se devuelve a flujo completo.
+- Lo que nunca se salta: `approved` + `Aprobado por` humano, una sola `in_progress`, y `PASS` + 5 en verde para `done`.
 
 ## Git
 
