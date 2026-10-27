@@ -349,6 +349,12 @@
 // --- Footer ------------------------------------------------------------------
 
 .dm-footer {
+  // Anclado al borde inferior del viewport: el shell reserva
+  // `--dm-footer-height` en el alto del sidenav sticky, así que el pie debe
+  // permanecer visible mientras se desplaza el contenido.
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
   min-block-size: var(--dm-footer-height);
