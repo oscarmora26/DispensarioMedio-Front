@@ -814,7 +814,6 @@ Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico
 
 - 2026-10-27 — spec: feature creada (patrón F-009).
 
-
 - 2026-10-27 — Implementación completa (5b2e7b9): models/service/error/toast/list/form/confirm + ruta + nav. Reviewer PASS S1..S10, 413 tests verdes, lint, build, features:validate. docs/BRANDS.md. Cierre done.
 
 ### F-011 — Módulo para gestionar ubicaciones
@@ -827,13 +826,14 @@ Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico
 
 **Descripción**
 
-CRUD del catálogo de ubicaciones físicas (RF-06, US-17) siguiendo el criterio estándar CA-CRUD (doc 01 §7). Es el tercer catálogo maestro de la épica E2 y completa la regla del tres (PQ-01): con tres casos reales se evalúa la extracción a shared/ (US-08). Campos: description, shelf, section, cell, is_active. La combinación (shelf, section, cell) es única. Ruta /locations dentro del shell con carga lazy; ítem «Ubicaciones» en el menú, visible para ADMIN y MEDICO.
+CRUD del catálogo de ubicaciones físicas (RF-06, US-17) siguiendo el criterio estándar CA-CRUD (doc 01 §7). Es el tercer catálogo maestro de la épica E2 y completa la regla del tres (PQ-01): con tres casos reales se evalúa la extracción a shared/ (US-08). Campos: name, description, is_active y las celdas anidadas (section, cell, description, is_active). _(2026-10-27: realineado a /api/v1/shelves; el modelo plano description/shelf/section/cell no existe en el backend.)_ Ruta /locations dentro del shell con carga lazy; ítem «Ubicaciones» en el menú, visible para ADMIN y MEDICO.
 
 Contrato verificado contra el OpenAPI vivo (2026-10-27):
 
-- GET /api/v1/locations: page ≥1, size 1-100 (por defecto 20), search ≤100 parcial en description, is_active, sort ∈ description|created_at|is_active|id con prefijo - (por defecto description). Respuesta items/total/page/size/pages.
-- POST /locations: description, shelf, section, cell requeridos; is_active opcional (por defecto true); 201; 409 en duplicado.
-- GET/PUT/DELETE /locations/{id}: PUT = reemplazo completo conservando created_at; DELETE = desactivación lógica (is_active: false), nunca borrado físico.
+- GET /api/v1/shelves: page ≥1, size 1-100 (por defecto 20), search ≤100, is_active, sort (por defecto name) con prefijo -. Respuesta items/total/page/size/pages; cada estante trae sus `cells[]`. _(Corregido el 2026-10-27: `/api/v1/locations` no existe en el backend.)_
+- POST /shelves: `name` (2..100) requerido; `description` (≤200) opcional; `is_active` opcional (por defecto true); 201; 409 en `name` duplicado; body con `additionalProperties: false` y **sin `cells`** (las celdas se crean por `/v1/cells`).
+- GET/PUT/DELETE /shelves/{id}: PUT = reemplazo completo de `name`+`description`+`is_active` (**no toca las celdas**); DELETE responde 204 (desactivación lógica).
+- Celdas (`/api/v1/cells`, endpoints propios desde el 2026-10-27): GET paginado (`search` en section/cell/description, `shelf_id`, `is_active`, `sort` ∈ section|cell|shelf_id|created_at|is_active|id), POST (`section`+`cell`+`shelf_id` requeridos), GET/PUT/DELETE `/{id}` (el PUT incluye `shelf_id`, permite mover la celda), DELETE 204 y **409 si la celda tiene medicamentos asociados**.
 
 Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico muestra la tabla sin acciones de escritura.
 
@@ -860,10 +860,58 @@ Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta. La UI del médico
 
 - 2026-10-27 — spec: feature creada.
 
+- 2026-10-27 — Implementación completa: models/service/error/toast/list/form/confirm + ruta + nav. Reviewer PASS S1..S10, 510 tests verdes, lint, build, features:validate. docs/LOCATIONS.md. Cierre done.
+- 2026-10-27 — **Realineación de contrato** (reporte del humano: «Al consultar las ubicaciones aparece La ubicación solicitada ya no existe en vez del vacío»): `/api/v1/locations` **no existe** en el backend vivo (404); el catálogo real es `/api/v1/shelves` (estantes con `cells[]` anidadas). Decisión de Oscar Mora: mapear «Ubicaciones» a `/v1/shelves`. Reescritos `locations.models.ts`/`service.ts`/`error.ts`/`list`/`form`/`confirm` + specs + `docs/LOCATIONS.md`; añadido `LocationsService.listAllCells()` (`CellOption`) para los catálogos que referencian `cells.id`; retirada del copy la afirmación «no elimina sus datos» porque la semántica de `DELETE` no está verificada. Limitación documentada: el `PUT` reemplaza `cells[]` sin `id`, así que `cells.id` cambia en cada edición del estante. Verificación: 122 tests de la feature, suite completa 645, lint, build y `features:validate` en verde.
+- 2026-10-27 — **Nueva estructura del backend** (pedido del humano): las celdas salen de los bodies de estante y pasan a tener endpoints propios (`/api/v1/cells` con POST/PUT/DELETE y `409` al desactivar una celda con medicamentos); `ShelfCreate`/`ShelfUpdate` quedan en `name`+`description`+`is_active` con `additionalProperties: false`. Reescripto el guardado del modal: primero el estante y después se reconcilian las celdas (upserts y luego bajas), con `savedShelfId` para que un reintento actualice en vez de duplicar y con el `id` devuelto por cada `POST /v1/cells` escrito en su fila. En el mismo modal: los títulos pasan a «Nuevo estante»/«Editar estante» (y confirm/toasts/checkbox en consecuencia) y el editor de celdas pasa a una sola fila alineada por celda con cabecera `[Tramo, Celda, Descripción, Estado, Eliminar]`. Verificación: 147 tests de la feature, suite completa 670, lint, build y `features:validate` en verde.
 
+### F-012 — Módulo para gestionar medicamentos
 
+- **Estado:** done
+- **Prioridad:** Alta
+- **Aprobado por:** Oscar Mora
+- **Fecha de aprobación:** 2026-10-27
+- **Dependencias:** F-009 (tipos), F-010 (marcas), F-011 (ubicaciones — el catálogo real son celdas de estantes, `/api/v1/shelves`), API /api/v1/medications (Sprint 4, US-20)
 
-- 2026-10-27 — Implementación completa: models/service/error/toast/list/form/confirm + ruta + nav. Reviewer PASS S1..S10, 510 tests verdes, lint, build, features:validate. docs/LOCATIONS.md. Cierre done.## Plantilla
+**Descripción**
+
+CRUD del catálogo de medicamentos (RF-07, US-20) siguiendo el criterio estándar CA-CRUD (doc 01 §7). Primer módulo compuesto de E3: asocia tipo, marca y ubicación (celda de estante). Campos: description, drug_type_id, brand_id, cell_id, dose, is_active. Unicidad: (description, brand_id, dose). Ruta /medications dentro del shell con carga lazy; ítem «Medicamentos» en el menú, visible para ADMIN y MEDICO.
+
+Contrato verificado contra el OpenAPI vivo (2026-10-27):
+
+- GET /api/v1/medications: page ≥1, size 1-100 (por defecto 20), search ≤100 parcial en description o dose, is_active, drug_type_id, brand_id, cell_id, sort ∈ description|dose|drug_type_id|brand_id|cell_id|created_at|is_active|id con prefijo - (por defecto description). Respuesta items/total/page/size/pages. _(Realineado el 2026-10-27: `location_id` → `cell_id`; `MedicationRead` ya no devuelve `created_at`.)_
+- POST /medications: description, drug_type_id, brand_id, cell_id, dose requeridos; is_active opcional (por defecto true); 201; 409 en duplicado; 404 si algún catálogo referenciado no existe o está inactivo. El 422 reporta `{"field": "cell_id"}`.
+- GET/PUT/DELETE /medications/{id}: PUT = reemplazo completo; DELETE = desactivación lógica.
+
+Permisos (matriz doc 01 §3): ADMIN = CRUD; MEDICO = consulta.
+
+**Criterios de aceptación**
+
+- [x] CA-01 Listado con paginación 100% servidor + filtros por tipo/marca/ubicación.
+- [x] CA-02 Crear: description, drug_type_id, brand_id, location_id, dose requeridos; 201 cierra con toast; 409 duplicado marca error de campo; 404 si catálogo inactivo.
+- [x] CA-03 Editar: diálogo precargado con GET /{id}; 200 conserva created_at.
+- [x] CA-04 Desactivar/Activar con confirmación explícita.
+- [x] CA-05 Permisos: MEDICO solo lectura.
+- [x] CA-06 Estados de UI completos.
+- [x] CA-07 Diseño: solo tokens --dm-*.
+- [x] CA-08 done requiere: PASS del reviewer, lint, test, build, features:validate.
+
+**Tareas**
+
+- [x] T-012-01 Modelo y servicio.
+- [x] T-012-02 Listado con filtros por tipo/marca/ubicación.
+- [x] T-012-03 Diálogos y confirmación.
+- [x] T-012-04 Ruta lazy + nav.
+- [x] T-012-05 Documentación + cierre.
+
+**Historial**
+
+- 2026-10-27 — spec: feature creada.
+
+- 2026-10-27 — Implementación: models/service/error/toast/list/form/confirm + ruta + nav. Build OK. Specs copiadas de brands con adaptación parcial (pendiente limpieza de asserts). docs pendiente.
+- 2026-10-27 — Limpieza de specs de medicamentos: adaptación de catálogos (drug-types/brands/locations), género y mensajes de error; 96 tests verdes, lint, build, features:validate OK.
+- 2026-10-27 — **Cambio de contrato del backend**: body POST/PUT, respuesta, filtro de listado, `sort` y `422` pasan de `location_id` a `cell_id`; `MedicationRead` deja de devolver `created_at` (queda opcional y no se muestra); `cell_id` referencia `cells.id` (`fk_medications_location_id_cells`). Renombrado el dominio completo (`cellId`/`cell_id`), la «Ubicación» del medicamento pasó a celdas vía `LocationsService.listAllCells()` y cada catálogo del `forkJoin` se aisló con `catchError` para corregir el reporte «al agregar o actualizar un medicamento no carga tipo, marca ni ubicación». Verificación: 108 tests de la feature, suite completa 645, lint, build y `features:validate` en verde.
+
+## Plantilla
 
 ```md
 ### F-001 — Título de la feature
