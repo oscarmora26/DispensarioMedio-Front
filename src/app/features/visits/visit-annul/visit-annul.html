@@ -1,0 +1,57 @@
+<h2 mat-dialog-title>Anular visita</h2>
+
+<mat-dialog-content>
+  <p class="dm-visit-annul__summary">
+    ¿Anular la visita de <strong>{{ data.patientName }}</strong> del
+    {{ formatVisitedAt(data.visitedAt) }}? Esta acción no se puede revertir.
+  </p>
+
+  <form
+    id="dm-visit-annul-form"
+    class="dm-visit-annul__form"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    novalidate
+    [attr.aria-busy]="submitting()"
+  >
+    <mat-form-field class="dm-visit-annul__reason" appearance="outline">
+      <mat-label>Motivo de la anulación</mat-label>
+      <textarea
+        matInput
+        formControlName="reason"
+        rows="3"
+        required
+        [attr.maxlength]="reasonMaxLength"
+      ></textarea>
+      <mat-hint>Hasta {{ reasonMaxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.reason.hasError('required')) {
+          Ingresa el motivo de la anulación.
+        } @else if (form.controls.reason.hasError('maxlength')) {
+          El motivo no debe superar los {{ reasonMaxLength }} caracteres.
+        }
+      </mat-error>
+    </mat-form-field>
+
+    @if (error(); as errorMessage) {
+      <p class="dm-visit-annul__error" role="alert">{{ errorMessage }}</p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancelar</button>
+  <button
+    mat-flat-button
+    color="warn"
+    type="submit"
+    form="dm-visit-annul-form"
+    [disabled]="submitting()"
+  >
+    @if (submitting()) {
+      Anulando…
+    } @else {
+      Anular
+    }
+  </button>
+</mat-dialog-actions>

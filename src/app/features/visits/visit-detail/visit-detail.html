@@ -1,0 +1,161 @@
+<section class="dm-visit-detail" aria-labelledby="dm-visit-detail-title">
+  <div class="dm-visit-detail__header">
+    <h1 id="dm-visit-detail-title" class="dm-visit-detail__title">
+      {{ visitId !== null ? 'Visita #' + visitId : 'Visita' }}
+    </h1>
+    <a mat-stroked-button class="dm-visit-detail__back" routerLink="/visits">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Volver al listado
+    </a>
+  </div>
+
+  <div class="dm-visit-detail__table-region" [attr.aria-busy]="loading()">
+    @if (errorMessage(); as errorMessage) {
+      <div class="dm-visit-detail__error" role="alert">
+        <p class="dm-visit-detail__error-message">{{ errorMessage }}</p>
+        <button
+          mat-stroked-button
+          type="button"
+          class="dm-visit-detail__retry"
+          aria-label="Reintentar la carga de la visita"
+          [disabled]="loading()"
+          (click)="retry()"
+        >
+          Reintentar
+        </button>
+      </div>
+    }
+
+    @if (notFound()) {
+      <div class="dm-visit-detail__not-found" role="status">
+        <h2 class="dm-visit-detail__section-title">Visita no encontrada</h2>
+        <p class="dm-visit-detail__not-found-message">
+          No se encontró la visita solicitada. Puede que no exista o que pertenezca a otro médico.
+        </p>
+        <a mat-flat-button routerLink="/visits">Volver al listado</a>
+      </div>
+    }
+
+    @if (visit(); as visit) {
+      <section class="dm-visit-detail__summary" aria-labelledby="dm-visit-detail-summary-title">
+        <h2 id="dm-visit-detail-summary-title" class="dm-visit-detail__section-title">
+          Datos de la visita
+        </h2>
+        <dl class="dm-visit-detail__facts">
+          <div class="dm-visit-detail__fact">
+            <dt class="dm-visit-detail__term">Paciente</dt>
+            <dd class="dm-visit-detail__value">
+              {{ visit.patient.name }} — {{ maskCedula(visit.patient.cedula) }}
+            </dd>
+          </div>
+          <div class="dm-visit-detail__fact">
+            <dt class="dm-visit-detail__term">Médico</dt>
+            <dd class="dm-visit-detail__value">{{ visit.doctor.name || '—' }}</dd>
+          </div>
+          <div class="dm-visit-detail__fact">
+            <dt class="dm-visit-detail__term">Fecha y hora</dt>
+            <dd class="dm-visit-detail__value">{{ formatVisitDateTime(visit.visitedAt) }}</dd>
+          </div>
+          <div class="dm-visit-detail__fact">
+            <dt class="dm-visit-detail__term">Estado</dt>
+            <dd class="dm-visit-detail__value">
+              <span
+                class="dm-visit-detail__status-badge"
+                [class.dm-visit-detail__status-badge--annulled]="visit.status === 'ANULADA'"
+              >
+                {{ statusLabel(visit.status) }}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="dm-visit-detail__section" aria-labelledby="dm-visit-detail-symptoms-title">
+        <h2 id="dm-visit-detail-symptoms-title" class="dm-visit-detail__section-title">Síntomas</h2>
+        <p class="dm-visit-detail__paragraph">
+          {{ visit.symptoms || 'Sin síntomas registrados.' }}
+        </p>
+      </section>
+
+      <section
+        class="dm-visit-detail__section"
+        aria-labelledby="dm-visit-detail-recommendations-title"
+      >
+        <h2 id="dm-visit-detail-recommendations-title" class="dm-visit-detail__section-title">
+          Recomendaciones
+        </h2>
+        @if (visit.recommendations) {
+          <p class="dm-visit-detail__paragraph">{{ visit.recommendations }}</p>
+        } @else {
+          <p class="dm-visit-detail__paragraph dm-visit-detail__empty">
+            Sin recomendaciones registradas.
+          </p>
+        }
+      </section>
+
+      <section
+        class="dm-visit-detail__section dm-visit-detail__medications"
+        aria-labelledby="dm-visit-detail-medications-title"
+      >
+        <h2 id="dm-visit-detail-medications-title" class="dm-visit-detail__section-title">
+          Medicamentos entregados
+        </h2>
+        @if (visit.medications.length > 0) {
+          <div class="dm-visit-detail__table-wrap">
+            <table class="dm-visit-detail__table" aria-label="Medicamentos entregados">
+              <thead>
+                <tr>
+                  <th scope="col">Medicamento</th>
+                  <th scope="col">Dosis</th>
+                  <th scope="col">Cantidad</th>
+                  <th scope="col">Indicaciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (medication of visit.medications; track medication.medicationId) {
+                  <tr>
+                    <td>{{ medication.description || '—' }}</td>
+                    <td>{{ medication.dose || '—' }}</td>
+                    <td class="dm-visit-detail__quantity">{{ medication.quantity ?? '—' }}</td>
+                    <td>{{ medication.instructions ?? '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="dm-visit-detail__paragraph dm-visit-detail__empty">
+            No se registraron medicamentos.
+          </p>
+        }
+      </section>
+
+      @if (visit.status === 'ANULADA') {
+        <section
+          class="dm-visit-detail__section dm-visit-detail__annulled"
+          aria-labelledby="dm-visit-detail-annulled-title"
+        >
+          <h2 id="dm-visit-detail-annulled-title" class="dm-visit-detail__section-title">
+            Anulación
+          </h2>
+          <dl class="dm-visit-detail__facts">
+            <div class="dm-visit-detail__fact">
+              <dt class="dm-visit-detail__term">Motivo de anulación</dt>
+              <dd class="dm-visit-detail__value">{{ visit.annulmentReason ?? '—' }}</dd>
+            </div>
+            <div class="dm-visit-detail__fact">
+              <dt class="dm-visit-detail__term">Anulada el</dt>
+              <dd class="dm-visit-detail__value">{{ formatVisitDateTime(visit.annulledAt) }}</dd>
+            </div>
+          </dl>
+        </section>
+      }
+    }
+
+    @if (loading()) {
+      <div class="dm-visit-detail__loading">
+        <mat-progress-spinner mode="indeterminate" diameter="40" aria-label="Cargando visita" />
+      </div>
+    }
+  </div>
+</section>

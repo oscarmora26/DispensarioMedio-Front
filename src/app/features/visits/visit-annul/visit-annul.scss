@@ -1,0 +1,33 @@
+@use '../../../../styles/tokens' as dm;
+
+// Confirmación de anulación: el rojo institucional solo aparece en la acción
+// destructiva (`color="warn"` de Material) y en el borde del aviso.
+.dm-visit-annul__summary {
+  margin: 0 0 var(--dm-space-md);
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-visit-annul__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-sm);
+}
+
+@include dm.dm-focus-ring;
+
+.dm-visit-annul__reason {
+  inline-size: 100%;
+}
+
+.dm-visit-annul__error {
+  margin: 0;
+  padding: var(--dm-space-sm) var(--dm-space-md);
+  border-inline-start: 4px solid var(--dm-color-error);
+  border-radius: var(--dm-radius-sm);
+  background-color: var(--dm-color-error-container);
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}

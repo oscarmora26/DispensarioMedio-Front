@@ -1,0 +1,172 @@
+@use '../../../../styles/tokens' as dm;
+
+// Diálogo amplio con contenido desplazable (decisión PQ-01 de F-015).
+.dm-visit-form__content {
+  max-block-size: 70vh;
+  overflow-y: auto;
+}
+
+.dm-visit-form__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-md);
+  padding-block-start: var(--dm-space-xs);
+}
+
+@include dm.dm-focus-ring;
+
+.dm-visit-form__field {
+  inline-size: 100%;
+}
+
+// El paciente se elige con el autocompletar, así que su error de validación se
+// anuncia en un párrafo asociado al input con `aria-describedby`.
+.dm-visit-form__field-error {
+  margin: calc(var(--dm-space-md) * -1) 0 0;
+  color: var(--dm-color-error);
+
+  @include dm.dm-typescale(body-sm);
+}
+
+.dm-visit-form__field--wide {
+  inline-size: 100%;
+}
+
+// Fecha (calendario Material) + hora + minuto: tres piezas del mismo reloj de
+// pared, alineadas en una fila que se apila en pantallas estrechas.
+.dm-visit-form__visited-at {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dm-space-sm);
+  flex-wrap: wrap;
+}
+
+.dm-visit-form__date-field {
+  flex: 1 1 16rem;
+}
+
+.dm-visit-form__time-field {
+  flex: 0 1 8rem;
+}
+
+.dm-visit-form__medications {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-sm);
+  padding: var(--dm-space-md);
+  border: 1px solid var(--dm-color-border-subtle);
+  border-radius: var(--dm-radius-lg);
+  background-color: var(--dm-color-canvas);
+}
+
+.dm-visit-form__medications-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dm-space-md);
+  flex-wrap: wrap;
+}
+
+.dm-visit-form__medications-title {
+  margin: 0;
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(title-md);
+}
+
+.dm-visit-form__medication-add {
+  min-block-size: 36px;
+}
+
+.dm-visit-form__medications-empty {
+  margin: 0;
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-visit-form__medications-error {
+  margin: 0;
+  padding: var(--dm-space-xs) var(--dm-space-sm);
+  border-inline-start: 4px solid var(--dm-color-error);
+  border-radius: var(--dm-radius-sm);
+  background-color: var(--dm-color-error-container);
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
+
+// Fila del editor de medicamentos: el buscador ocupa el espacio libre y las
+// columnas numéricas/cortas quedan acotadas.
+.dm-visit-form__medication-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dm-space-sm);
+  flex-wrap: wrap;
+}
+
+.dm-visit-form__medication-field {
+  flex: 1 1 18rem;
+}
+
+.dm-visit-form__quantity {
+  flex: 0 1 10rem;
+}
+
+.dm-visit-form__instructions {
+  flex: 1 1 14rem;
+}
+
+.dm-visit-form__medication-remove {
+  flex: 0 0 auto;
+  color: var(--dm-color-muted);
+}
+
+.dm-visit-form__loading {
+  margin: 0;
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-visit-form__error {
+  padding: var(--dm-space-sm) var(--dm-space-md);
+  border-inline-start: 4px solid var(--dm-color-error);
+  border-radius: var(--dm-radius-sm);
+  background-color: var(--dm-color-error-container);
+  color: var(--dm-color-text);
+}
+
+.dm-visit-form__error-message {
+  margin: 0;
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-visit-form__error-fields {
+  margin: var(--dm-space-xs) 0 0;
+  padding-inline-start: var(--dm-space-lg);
+
+  @include dm.dm-typescale(body-md);
+}
+
+@include dm.dm-mobile {
+  .dm-visit-form__content {
+    max-block-size: 60vh;
+  }
+
+  .dm-visit-form__medication-row {
+    flex-direction: column;
+  }
+
+  .dm-visit-form__medication-field,
+  .dm-visit-form__quantity,
+  .dm-visit-form__instructions {
+    flex: 1 1 auto;
+    inline-size: 100%;
+  }
+
+  .dm-visit-form__medication-add {
+    min-block-size: 44px;
+  }
+}

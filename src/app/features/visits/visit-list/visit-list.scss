@@ -1,0 +1,238 @@
+@use '../../../../styles/tokens' as dm;
+
+// Listado de visitas: sin colores literales, solo `var(--dm-*)`.
+.dm-visit-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-md);
+}
+
+// Anillo de foco propio para controles nativos (blindaje F-003).
+@include dm.dm-focus-ring;
+
+.dm-visit-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dm-space-md);
+  flex-wrap: wrap;
+}
+
+.dm-visit-list__title {
+  margin: 0;
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(headline-sm);
+}
+
+.dm-visit-list__new {
+  min-block-size: 36px;
+}
+
+.dm-visit-list__filters {
+  display: flex;
+  gap: var(--dm-space-md);
+  flex-wrap: wrap;
+}
+
+.dm-visit-list__status-filter,
+.dm-visit-list__date-filter {
+  flex: 0 1 12rem;
+}
+
+.dm-visit-list__patient-filter {
+  flex: 1 1 14rem;
+}
+
+.dm-visit-list__doctor-filter {
+  flex: 1 1 14rem;
+}
+
+// Región de la tabla: única zona que conmuta entre tabla/paginador, vacío y
+// carga. Header y filtros permanecen montados (sin parpadeo ni pérdida de
+// foco) y es el ancla del overlay absoluto de carga.
+.dm-visit-list__table-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-space-md);
+  position: relative;
+}
+
+// Carga contenida: el indicador flota sobre la región, nunca ocupa altura en
+// flujo ni intercepta el puntero, así el foco permanece en los filtros.
+.dm-visit-list__loading {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  padding-block: var(--dm-space-md);
+  pointer-events: none;
+}
+
+.dm-visit-list__empty {
+  margin: 0;
+  padding: var(--dm-space-xl) 0;
+  text-align: center;
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(body-md);
+}
+
+// Error de carga con reintento: texto del sistema sobre el contenedor de error.
+.dm-visit-list__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--dm-space-md);
+  padding: var(--dm-space-sm) var(--dm-space-md);
+  border-inline-start: 4px solid var(--dm-color-error);
+  border-radius: var(--dm-radius-sm);
+  background-color: var(--dm-color-error-container);
+  color: var(--dm-color-text);
+}
+
+.dm-visit-list__error-message {
+  margin: 0;
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-visit-list__retry {
+  flex: 0 0 auto;
+}
+
+// En <768px la tabla usa scroll horizontal contenido (docs/DESIGN.md).
+.dm-visit-list__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--dm-color-border-subtle);
+  border-radius: var(--dm-radius-lg);
+  background-color: var(--dm-color-surface);
+  box-shadow: var(--dm-elevation-1);
+}
+
+.dm-visit-list__table {
+  inline-size: 100%;
+  min-inline-size: 60rem;
+  background-color: var(--dm-color-surface);
+}
+
+.dm-visit-list__table .mat-mdc-header-row {
+  background-color: var(--dm-color-canvas);
+  border-block-end: 2px solid var(--dm-color-border-subtle);
+}
+
+.dm-visit-list__table .mat-mdc-header-cell {
+  color: var(--dm-color-muted);
+
+  @include dm.dm-typescale(label-sm);
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dm-visit-list__table .mat-mdc-row {
+  min-block-size: 48px;
+  border-block-end: 1px solid var(--dm-color-border-subtle);
+  transition: background-color var(--dm-transition-fast);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--dm-color-primary-container);
+  }
+}
+
+// Foco del ancla real del paciente: la fila es clicable con ratón, pero el
+// teclado y la tecnología de asistencia entran por este enlace (S14).
+.dm-visit-list__patient-link {
+  display: inline-block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--dm-radius-sm);
+
+  &:hover .dm-visit-list__patient {
+    text-decoration: underline;
+  }
+}
+
+.dm-visit-list__table .mat-mdc-cell {
+  color: var(--dm-color-text);
+
+  @include dm.dm-typescale(body-md);
+}
+
+.dm-visit-list__patient {
+  display: block;
+  font-weight: var(--dm-text-title-sm-weight);
+}
+
+// La cédula con máscara no se parte entre bloques ni se lee como número.
+.dm-visit-list__cedula {
+  display: block;
+  color: var(--dm-color-muted);
+  white-space: nowrap;
+
+  @include dm.dm-mono;
+
+  @include dm.dm-typescale(body-sm);
+}
+
+.dm-visit-list__date {
+  white-space: nowrap;
+
+  @include dm.dm-tabular-nums;
+}
+
+// Estado con los chips AA del sistema (REGISTRADA 4.57:1 / ANULADA 5.30:1).
+.dm-visit-list__status-badge {
+  display: inline-block;
+  padding: var(--dm-space-xxs) var(--dm-space-sm);
+  border: 1px solid var(--dm-chip-registrada-border);
+  border-radius: var(--dm-radius-pill);
+  background-color: var(--dm-chip-registrada-bg);
+  color: var(--dm-chip-registrada-text);
+  white-space: nowrap;
+
+  @include dm.dm-typescale(label-md);
+}
+
+.dm-visit-list__status-badge--annulled {
+  border-color: var(--dm-chip-anulada-border);
+  background-color: var(--dm-chip-anulada-bg);
+  color: var(--dm-chip-anulada-text);
+}
+
+@include dm.dm-mobile {
+  .dm-visit-list__filters {
+    flex-direction: column;
+  }
+
+  .dm-visit-list__status-filter,
+  .dm-visit-list__date-filter,
+  .dm-visit-list__patient-filter,
+  .dm-visit-list__doctor-filter {
+    flex: 1 1 auto;
+  }
+
+  .dm-visit-list__new {
+    min-block-size: 44px;
+  }
+
+  .dm-visit-list__error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dm-visit-list__retry {
+    min-block-size: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-visit-list__table .mat-mdc-row {
+    transition: none;
+  }
+}

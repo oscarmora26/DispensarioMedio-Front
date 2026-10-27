@@ -1,0 +1,270 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar visita' : 'Nueva visita' }}</h2>
+
+<mat-dialog-content class="dm-visit-form__content">
+  <form
+    id="dm-visit-form"
+    class="dm-visit-form__form"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    novalidate
+    [attr.aria-busy]="submitting() || loadingVisit()"
+  >
+    <mat-form-field class="dm-visit-form__field dm-visit-form__patient-field" appearance="outline">
+      <mat-label>Paciente</mat-label>
+      <input
+        matInput
+        class="dm-visit-form__patient-input"
+        type="text"
+        [formControl]="patientSearch"
+        [matAutocomplete]="patientAuto"
+        aria-label="Buscar paciente por nombre o cédula"
+        autocomplete="off"
+        (focus)="onPatientPanelOpened()"
+        (click)="onPatientPanelOpened()"
+        [attr.aria-describedby]="patientError() ? 'dm-visit-form-patient-error' : null"
+      />
+      <mat-autocomplete
+        #patientAuto="matAutocomplete"
+        (optionSelected)="onPatientSelected($event.option.value)"
+      >
+        @for (patient of patientOptions(); track patient.id) {
+          <mat-option [value]="patient">
+            {{ patient.name }} — {{ maskCedula(patient.cedula) }}
+          </mat-option>
+        }
+      </mat-autocomplete>
+      <mat-hint>Elige un paciente activo; escribe para buscarlo en el servidor.</mat-hint>
+    </mat-form-field>
+    @if (patientError()) {
+      <p id="dm-visit-form-patient-error" class="dm-visit-form__field-error">
+        @if (form.controls.patientId.hasError('required')) {
+          Selecciona el paciente
+        } @else {
+          {{ fieldErrors().patientId }}
+        }
+      </p>
+    }
+
+    <div class="dm-visit-form__visited-at" role="group" aria-labelledby="dm-visit-form-visited-at">
+      <mat-form-field class="dm-visit-form__date-field" appearance="outline">
+        <mat-label id="dm-visit-form-visited-at">Fecha y hora de la visita</mat-label>
+        <input
+          matInput
+          [matDatepicker]="visitedAtPicker"
+          formControlName="visitedDate"
+          aria-label="Fecha de la visita"
+          required
+        />
+        <mat-datepicker-toggle
+          matIconSuffix
+          [for]="visitedAtPicker"
+          aria-label="Abrir el calendario de la fecha de la visita"
+        />
+        <mat-datepicker #visitedAtPicker />
+        <mat-hint>Se registra en hora de Santo Domingo y no puede estar en el futuro.</mat-hint>
+        <mat-error>
+          @if (form.controls.visitedDate.hasError('required')) {
+            Ingresa la fecha y hora de la visita
+          }
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field class="dm-visit-form__time-field" appearance="outline">
+        <mat-label>Hora</mat-label>
+        <mat-select formControlName="visitedHour" aria-label="Hora de la visita" required>
+          @for (hour of hourOptions; track hour) {
+            <mat-option [value]="hour">{{ hour }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>Elige la hora de la visita</mat-error>
+      </mat-form-field>
+
+      <mat-form-field class="dm-visit-form__time-field" appearance="outline">
+        <mat-label>Minuto</mat-label>
+        <mat-select formControlName="visitedMinute" aria-label="Minuto de la visita" required>
+          @for (minute of minuteOptions; track minute) {
+            <mat-option [value]="minute">{{ minute }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>Elige el minuto de la visita</mat-error>
+      </mat-form-field>
+    </div>
+    @if (form.hasError('future') || fieldErrors().visitedAt) {
+      <p class="dm-visit-form__field-error">
+        @if (form.hasError('future')) {
+          La fecha de la visita no puede estar en el futuro.
+        } @else {
+          {{ fieldErrors().visitedAt }}
+        }
+      </p>
+    }
+
+    <mat-form-field class="dm-visit-form__field dm-visit-form__field--wide" appearance="outline">
+      <mat-label>Síntomas</mat-label>
+      <textarea
+        matInput
+        formControlName="symptoms"
+        rows="4"
+        required
+        [attr.maxlength]="symptomsMaxLength"
+      ></textarea>
+      <mat-hint>Entre {{ symptomsMinLength }} y {{ symptomsMaxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.symptoms.hasError('required')) {
+          Ingresa los síntomas
+        } @else if (form.controls.symptoms.hasError('minlength')) {
+          Ingresa al menos {{ symptomsMinLength }} caracteres en los síntomas.
+        } @else if (form.controls.symptoms.hasError('maxlength')) {
+          Los síntomas no deben superar los {{ symptomsMaxLength }} caracteres.
+        } @else if (fieldErrors().symptoms) {
+          {{ fieldErrors().symptoms }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field class="dm-visit-form__field dm-visit-form__field--wide" appearance="outline">
+      <mat-label>Recomendaciones</mat-label>
+      <textarea
+        matInput
+        formControlName="recommendations"
+        rows="3"
+        [attr.maxlength]="recommendationsMaxLength"
+      ></textarea>
+      <mat-hint>Opcional, hasta {{ recommendationsMaxLength }} caracteres.</mat-hint>
+      <mat-error>
+        @if (form.controls.recommendations.hasError('maxlength')) {
+          Las recomendaciones no deben superar los {{ recommendationsMaxLength }} caracteres.
+        } @else if (fieldErrors().recommendations) {
+          {{ fieldErrors().recommendations }}
+        }
+      </mat-error>
+    </mat-form-field>
+
+    <section class="dm-visit-form__medications" aria-labelledby="dm-visit-form-medications-title">
+      <div class="dm-visit-form__medications-head">
+        <h3 id="dm-visit-form-medications-title" class="dm-visit-form__medications-title">
+          Medicamentos entregados
+        </h3>
+        <button
+          mat-stroked-button
+          type="button"
+          class="dm-visit-form__medication-add"
+          (click)="addMedication()"
+        >
+          <mat-icon aria-hidden="true">add</mat-icon>
+          Agregar medicamento
+        </button>
+      </div>
+
+      @if (medications.hasError('duplicate')) {
+        <p class="dm-visit-form__medications-error" role="alert">
+          No se puede repetir el mismo medicamento en una visita.
+        </p>
+      }
+
+      @if (rows().length === 0) {
+        <p class="dm-visit-form__medications-empty">Sin medicamentos agregados.</p>
+      }
+
+      @for (row of rows(); track row; let index = $index) {
+        <div class="dm-visit-form__medication-row" [formGroup]="row.form">
+          <mat-form-field class="dm-visit-form__medication-field" appearance="outline">
+            <mat-label>Medicamento {{ index + 1 }}</mat-label>
+            <input
+              matInput
+              type="text"
+              [formControl]="row.search"
+              [matAutocomplete]="medicationAuto"
+              [attr.aria-label]="'Buscar medicamento ' + (index + 1)"
+              autocomplete="off"
+              (focus)="onMedicationPanelOpened(row)"
+              (click)="onMedicationPanelOpened(row)"
+            />
+            <mat-autocomplete
+              #medicationAuto="matAutocomplete"
+              (optionSelected)="onMedicationSelected(row, $event.option.value)"
+            >
+              @for (option of row.options(); track option.id) {
+                <mat-option [value]="option">{{ option.label }}</mat-option>
+              }
+            </mat-autocomplete>
+            <mat-error>
+              @if (row.form.controls.medicationId.hasError('required')) {
+                Selecciona el medicamento
+              } @else if (fieldErrors().medications) {
+                {{ fieldErrors().medications }}
+              }
+            </mat-error>
+            <mat-hint>Escribe para buscarlo en el servidor.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field class="dm-visit-form__quantity" appearance="outline">
+            <mat-label>Cantidad</mat-label>
+            <input
+              matInput
+              type="text"
+              formControlName="quantity"
+              [attr.maxlength]="quantityMaxLength"
+              [attr.aria-label]="'Cantidad del medicamento ' + (index + 1)"
+            />
+            <mat-hint>Opcional, mayor que 0.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field class="dm-visit-form__instructions" appearance="outline">
+            <mat-label>Indicaciones</mat-label>
+            <input
+              matInput
+              type="text"
+              formControlName="instructions"
+              [attr.maxlength]="instructionsMaxLength"
+              [attr.aria-label]="'Indicaciones del medicamento ' + (index + 1)"
+            />
+          </mat-form-field>
+
+          <button
+            mat-icon-button
+            type="button"
+            class="dm-visit-form__medication-remove"
+            [attr.aria-label]="'Quitar medicamento ' + (index + 1)"
+            (click)="removeMedication(index)"
+          >
+            <mat-icon aria-hidden="true">delete</mat-icon>
+          </button>
+        </div>
+      }
+    </section>
+
+    @if (loadingVisit()) {
+      <p class="dm-visit-form__loading" role="status">Cargando visita…</p>
+    }
+
+    @if (error(); as errorMessage) {
+      <div class="dm-visit-form__error" role="alert">
+        <p class="dm-visit-form__error-message">{{ errorMessage }}</p>
+        @if (fieldErrorMessages().length > 0) {
+          <ul class="dm-visit-form__error-fields">
+            @for (message of fieldErrorMessages(); track message) {
+              <li>{{ message }}</li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancelar</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="dm-visit-form"
+    [disabled]="submitting() || loadingVisit()"
+  >
+    @if (submitting()) {
+      Guardando…
+    } @else {
+      {{ isEdit ? 'Guardar cambios' : 'Registrar visita' }}
+    }
+  </button>
+</mat-dialog-actions>

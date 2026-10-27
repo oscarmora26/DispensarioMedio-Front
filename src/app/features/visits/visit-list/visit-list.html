@@ -1,0 +1,270 @@
+<section class="dm-visit-list" aria-labelledby="dm-visit-list-title">
+  <div class="dm-visit-list__header">
+    <h1 id="dm-visit-list-title" class="dm-visit-list__title">Visitas</h1>
+    @if (canWrite()) {
+      <button mat-flat-button type="button" class="dm-visit-list__new" (click)="openCreate()">
+        <mat-icon aria-hidden="true">add</mat-icon>
+        Registrar visita
+      </button>
+    }
+  </div>
+
+  <div class="dm-visit-list__filters">
+    <mat-form-field class="dm-visit-list__status-filter" appearance="outline">
+      <mat-label>Estado</mat-label>
+      <mat-select [formControl]="statusFilter">
+        <mat-option value="all">Todos</mat-option>
+        <mat-option value="REGISTRADA">Registrada</mat-option>
+        <mat-option value="ANULADA">Anulada</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field class="dm-visit-list__date-filter" appearance="outline">
+      <mat-label>Desde</mat-label>
+      <input
+        matInput
+        [matDatepicker]="dateFromPicker"
+        [formControl]="dateFrom"
+        aria-label="Fecha inicial del rango"
+      />
+      @if (dateFrom.value) {
+        <button
+          matSuffix
+          mat-icon-button
+          type="button"
+          aria-label="Quitar la fecha inicial del rango"
+          (click)="clearDateFrom()"
+        >
+          <mat-icon aria-hidden="true">close</mat-icon>
+        </button>
+      }
+      <mat-datepicker-toggle
+        matIconSuffix
+        [for]="dateFromPicker"
+        aria-label="Abrir el calendario de la fecha inicial"
+      />
+      <mat-datepicker #dateFromPicker />
+    </mat-form-field>
+
+    <mat-form-field class="dm-visit-list__date-filter" appearance="outline">
+      <mat-label>Hasta</mat-label>
+      <input
+        matInput
+        [matDatepicker]="dateToPicker"
+        [formControl]="dateTo"
+        aria-label="Fecha final del rango"
+      />
+      @if (dateTo.value) {
+        <button
+          matSuffix
+          mat-icon-button
+          type="button"
+          aria-label="Quitar la fecha final del rango"
+          (click)="clearDateTo()"
+        >
+          <mat-icon aria-hidden="true">close</mat-icon>
+        </button>
+      }
+      <mat-datepicker-toggle
+        matIconSuffix
+        [for]="dateToPicker"
+        aria-label="Abrir el calendario de la fecha final"
+      />
+      <mat-datepicker #dateToPicker />
+    </mat-form-field>
+
+    <mat-form-field class="dm-visit-list__patient-filter" appearance="outline">
+      <mat-label>Paciente</mat-label>
+      <input
+        matInput
+        type="text"
+        [formControl]="patientFilter"
+        [matAutocomplete]="patientAuto"
+        aria-label="Filtrar por paciente"
+        autocomplete="off"
+        (focus)="onPatientPanelOpened()"
+        (click)="onPatientPanelOpened()"
+      />
+      <mat-autocomplete
+        #patientAuto="matAutocomplete"
+        (optionSelected)="onPatientSelected($event.option.value)"
+      >
+        @for (patient of patientOptions(); track patient.id) {
+          <mat-option [value]="patient">
+            {{ patient.name }} — {{ maskCedula(patient.cedula) }}
+          </mat-option>
+        }
+      </mat-autocomplete>
+      @if (selectedPatient()) {
+        <button
+          matSuffix
+          mat-icon-button
+          type="button"
+          aria-label="Quitar el filtro de paciente"
+          (click)="clearPatientFilter()"
+        >
+          <mat-icon aria-hidden="true">close</mat-icon>
+        </button>
+      }
+    </mat-form-field>
+
+    @if (isAdmin()) {
+      <mat-form-field class="dm-visit-list__doctor-filter" appearance="outline">
+        <mat-label>Médico</mat-label>
+        <input
+          matInput
+          type="text"
+          [formControl]="doctorFilter"
+          [matAutocomplete]="doctorAuto"
+          aria-label="Filtrar por médico"
+          autocomplete="off"
+          (focus)="onDoctorPanelOpened()"
+          (click)="onDoctorPanelOpened()"
+        />
+        <mat-autocomplete
+          #doctorAuto="matAutocomplete"
+          (optionSelected)="onDoctorSelected($event.option.value)"
+        >
+          @for (doctor of doctorOptions(); track doctor.id) {
+            <mat-option [value]="doctor">{{ doctor.name }}</mat-option>
+          }
+        </mat-autocomplete>
+        @if (selectedDoctor()) {
+          <button
+            matSuffix
+            mat-icon-button
+            type="button"
+            aria-label="Quitar el filtro de médico"
+            (click)="clearDoctorFilter()"
+          >
+            <mat-icon aria-hidden="true">close</mat-icon>
+          </button>
+        }
+      </mat-form-field>
+    }
+  </div>
+
+  <div class="dm-visit-list__table-region" [attr.aria-busy]="loading()">
+    @if (errorMessage(); as errorMessage) {
+      <div class="dm-visit-list__error" role="alert">
+        <p class="dm-visit-list__error-message">{{ errorMessage }}</p>
+        <button
+          mat-stroked-button
+          type="button"
+          class="dm-visit-list__retry"
+          aria-label="Reintentar la carga de visitas"
+          [disabled]="loading()"
+          (click)="retry()"
+        >
+          Reintentar
+        </button>
+      </div>
+    }
+
+    @if (items().length > 0) {
+      <div class="dm-visit-list__table-wrap">
+        <table
+          mat-table
+          [dataSource]="items()"
+          matSort
+          (matSortChange)="onSort($event)"
+          [matSortActive]="sortState().active"
+          [matSortDirection]="sortState().direction"
+          aria-label="Visitas"
+          class="dm-visit-list__table"
+        >
+          <ng-container matColumnDef="patient">
+            <th mat-header-cell *matHeaderCellDef>Paciente</th>
+            <td mat-cell *matCellDef="let visit">
+              <a
+                class="dm-visit-list__patient-link"
+                [routerLink]="['/visits', visit.id]"
+                [attr.aria-label]="'Ver el detalle de la visita de ' + visit.patient.name"
+                (click)="$event.stopPropagation()"
+              >
+                <span class="dm-visit-list__patient">{{ visit.patient.name }}</span>
+              </a>
+              <span class="dm-visit-list__cedula">{{ maskCedula(visit.patient.cedula) }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="doctor">
+            <th mat-header-cell *matHeaderCellDef>Médico</th>
+            <td mat-cell *matCellDef="let visit">{{ visit.doctor.name }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="visitedAt">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="visited_at">Fecha y hora</th>
+            <td mat-cell *matCellDef="let visit" class="dm-visit-list__date">
+              {{ formatVisitedAt(visit.visitedAt) }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="status">Estado</th>
+            <td mat-cell *matCellDef="let visit">
+              <span
+                class="dm-visit-list__status-badge"
+                [class.dm-visit-list__status-badge--annulled]="visit.status === 'ANULADA'"
+              >
+                {{ statusLabel(visit.status) }}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
+            <td mat-cell *matCellDef="let visit">
+              @if (visit.status === 'REGISTRADA') {
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Editar la visita de ' + visit.patient.name"
+                  [title]="'Editar la visita de ' + visit.patient.name"
+                  (click)="$event.stopPropagation(); openEdit(visit)"
+                >
+                  <mat-icon aria-hidden="true">edit</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Anular la visita de ' + visit.patient.name"
+                  [title]="'Anular la visita de ' + visit.patient.name"
+                  (click)="$event.stopPropagation(); openAnnul(visit)"
+                >
+                  <mat-icon aria-hidden="true">block</mat-icon>
+                </button>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
+          <tr
+            mat-row
+            *matRowDef="let row; columns: displayedColumns()"
+            class="dm-visit-list__row"
+            (click)="openDetail(row)"
+          ></tr>
+        </table>
+      </div>
+
+      <mat-paginator
+        [length]="total()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [showFirstLastButtons]="true"
+        aria-label="Paginación de visitas"
+        (page)="onPage($event)"
+      />
+    } @else if (!loading() && !errorMessage()) {
+      <p class="dm-visit-list__empty" role="status">No hay visitas para mostrar.</p>
+    }
+
+    @if (loading()) {
+      <div class="dm-visit-list__loading">
+        <mat-progress-spinner mode="indeterminate" diameter="40" aria-label="Cargando visitas" />
+      </div>
+    }
+  </div>
+</section>
