@@ -130,6 +130,7 @@ describe('AppShell', () => {
 
   beforeEach(async () => {
     localStorage.clear();
+    sessionStorage.clear();
     await TestBed.configureTestingModule({
       imports: [AppShell],
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
@@ -140,6 +141,7 @@ describe('AppShell', () => {
     window.matchMedia = originalMatchMedia;
     TestBed.inject(HttpTestingController).verify();
     localStorage.clear();
+    sessionStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -424,6 +426,7 @@ describe('AppShell', () => {
 
   describe('bloque de usuario y sesión', () => {
     const loginUrl = `${environment.apiUrl}/v1/auth/login`;
+    const logoutUrl = `${environment.apiUrl}/v1/auth/logout`;
 
     function seedSession(username: string, role: string): AuthService {
       const auth = TestBed.inject(AuthService);
@@ -435,7 +438,9 @@ describe('AppShell', () => {
       httpMock.expectOne(loginUrl).flush({
         access_token: 'token-sintetico-de-prueba',
         token_type: 'bearer',
-        expires_in: 3600,
+        expires_in: 900,
+        refresh_token: 'refresh-sintetico-de-prueba',
+        refresh_expires_in: 2_592_000,
         user: {
           id: 7,
           username,
@@ -483,10 +488,11 @@ describe('AppShell', () => {
       expect(host.querySelector('.dm-user-block__role')?.textContent).toContain('ENFERMERIA');
     });
 
-    it('«Salir» limpia la sesión, navega a /login sin returnUrl y oculta el bloque', () => {
+    it('«Salir» revoca el refresh, limpia la sesión, navega a /login sin returnUrl y oculta el bloque', () => {
       const auth = seedSession('medico.demo', 'MEDICO');
       const router = TestBed.inject(Router);
       const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      const httpMock = TestBed.inject(HttpTestingController);
       const { fixture, host } = createShell(true);
 
       expect(host.querySelector('.dm-user-block')).not.toBeNull();
@@ -494,13 +500,19 @@ describe('AppShell', () => {
       query<HTMLButtonElement>(host, '.dm-user-block__logout').click();
       fixture.detectChanges();
 
+      const logoutReq = httpMock.expectOne(logoutUrl);
+
+      expect(logoutReq.request.body).toEqual({ refresh_token: 'refresh-sintetico-de-prueba' });
+      logoutReq.flush(null, { status: 204, statusText: 'No Content' });
+
       expect(auth.token()).toBeNull();
       expect(auth.user()).toBeNull();
       expect(localStorage.getItem('dm.auth.token')).toBeNull();
+      expect(localStorage.getItem('dm.auth.refresh')).toBeNull();
       expect(navigateSpy).toHaveBeenCalledWith(['/login'], { replaceUrl: true });
       expect(host.querySelector('.dm-user-block')).toBeNull();
 
-      TestBed.inject(HttpTestingController).expectNone(loginUrl);
+      httpMock.expectNone(loginUrl);
     });
 
     it('«Salir» es alcanzable por teclado como botón nativo', () => {

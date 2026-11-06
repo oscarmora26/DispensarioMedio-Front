@@ -21,7 +21,9 @@ function loginResponse(): Record<string, unknown> {
   return {
     access_token: 'token-sintetico-de-prueba',
     token_type: 'bearer',
-    expires_in: 3600,
+    expires_in: 900,
+    refresh_token: 'refresh-sintetico-de-prueba',
+    refresh_expires_in: 2_592_000,
     user: {
       id: 7,
       username: 'medico.demo',
@@ -81,6 +83,7 @@ describe('authGuard y guestGuard', () => {
 
   beforeEach(async () => {
     localStorage.clear();
+    sessionStorage.clear();
     await TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
@@ -94,6 +97,7 @@ describe('authGuard y guestGuard', () => {
     httpMock.verify();
     vi.restoreAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   function login(): void {

@@ -39,12 +39,25 @@ export interface BackendUserPayload {
   doctor_id: number | null;
 }
 
-/** Respuesta de `POST /api/v1/auth/login`. */
-export interface LoginResponseDto {
+/** Respuesta de `POST /api/v1/auth/login` y `POST /api/v1/auth/refresh`. */
+export interface TokenPairResponseDto {
   access_token: string;
   token_type: string;
   expires_in: number;
+  refresh_token: string;
+  refresh_expires_in: number;
   user: BackendUserPayload;
+}
+
+/** Respuesta de `POST /api/v1/auth/login` (par inicial). */
+export type LoginResponseDto = TokenPairResponseDto;
+
+/** Respuesta de `POST /api/v1/auth/refresh` (par rotado). */
+export type RefreshResponseDto = TokenPairResponseDto;
+
+/** Body de `POST /api/v1/auth/refresh` y `POST /api/v1/auth/logout`. */
+export interface RefreshRequestDto {
+  refresh_token: string;
 }
 
 /** Respuesta de `GET /api/v1/auth/me`. */
