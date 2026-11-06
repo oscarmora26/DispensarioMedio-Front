@@ -184,6 +184,8 @@ Ninguna. Resueltas por el humano el 2026-10-21:
 - **Fecha de aprobación:** 2026-10-21
 - **Dependencias:** `F-001` (design system `Clinical Academic Authority` y layout shell `dm-app-shell`, estado `done`).
 
+> **Nota de vigencia (2026-10-27):** [F-016](#f-016--refresh-token-renovación-de-sesión-reintento-y-logout-en-servidor) supera esta entrega en lo relativo a sesión: el backend ya emite refresh tokens, el access dura 15 minutos, «Salir» revoca en el servidor y cambiar/restablecer contraseña o desactivar un usuario cierran las sesiones. Siguen vigentes el resto de decisiones y criterios de F-002.
+
 **Descripción**
 
 F-001 entregó el design system, el shell `dm-app-shell` y difirió explícitamente el bloque de usuario/sesión de la topbar «a la feature de autenticación». Esta es esa feature: pantalla de inicio de sesión, estado de sesión en el cliente, protección de rutas, mapeo de errores del backend y bloque de usuario/«Salir» en la topbar.
@@ -1114,6 +1116,60 @@ Ninguna. Resueltas por el humano el 2026-10-27:
 - 2026-10-27 — pendiente de backend: `PUT /visits/{id}` y `POST /visits/{id}/annul` siguen marcados «Solo ADMIN» en el OpenAPI; el humano confirmó que los abrirá a MEDICO. Hasta ese despliegue, editar o anular como MEDICO responde `403` con el mensaje propio de permisos.
 - 2026-10-27 — nota de contrato para el cierre: `created_by`/`annulled_by` no tienen tipo publicado y se modelan como `string | number | null` (`—` si faltan); si el backend los devolviera como objeto usuario habría que mapear `username`. Pendiente de confirmar con una respuesta real de `GET /visits/{id}`.
 
+### F-016 — Refresh token: renovación de sesión, reintento y logout en servidor
+
+- **Estado:** done
+- **Prioridad:** Alta
+- **Aprobado por:** Oscar Mora
+- **Fecha de aprobación:** 2026-10-27
+- **Dependencias:** F-002 (sesión, guard e interceptor), backend FEAT-020 / ADR-0002 (`POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, login con `refresh_token`)
+
+**Descripción**
+
+Adopta en el frontend el contrato de refresh tokens que el backend aprobó e implementó en FEAT-020 (ADR-0002, 2026-10-27): «Se revierte la decisión “sin refresh tokens” de FEAT-002», access token de 15 minutos, refresh token opaco de 30 días deslizantes, rotación obligatoria con detección de reuso y logout idempotente. Supera la limitación documentada de F-002 («No existen refresh token, endpoint de logout/revocación»).
+
+Contrato verificado en el repo backend (`app/api/v1/routes/auth.py`, `app/schemas/auth.py`, `docs/features/FEAT-020.md`, `docs/adr/0002-refresh-tokens.md`):
+
+- `POST /api/v1/auth/login` — 200 con `{access_token, token_type: "bearer", expires_in (900 por defecto), refresh_token, refresh_expires_in (2592000), user}`. Cambio aditivo: el formulario actual sigue funcionando.
+- `POST /api/v1/auth/refresh` — público (el refresh token es la credencial), body `{refresh_token}` (1..512), 200 con el par rotado más `user`; toda falla responde 401 `{"detail": "Token inválido", "code": "invalid_token"}` sin distinguir desconocido, expirado, revocado o rotado.
+- `POST /api/v1/auth/logout` — público, body `{refresh_token}`, 204 siempre (idempotente, sin oráculo). No afecta otras sesiones.
+- El backend revoca todas las sesiones al cambiar/restablecer contraseña o desactivar el usuario; no hace falta ninguna acción extra en el frontend.
+
+**Criterios de aceptación**
+
+- [x] CA-01 El login guarda el par de tokens y `expiresAt` en `localStorage` (`dm.auth.token`, `dm.auth.refresh`, `dm.auth.expiresAt`; PA-02 intacta); la sesión sobrevive al cierre del navegador y se comparte entre pestañas, y la renovación adopta el token rotado por otra pestaña en lugar de cerrar la sesión.
+- [x] CA-02 `refreshSession()` es *single-flight*: N peticiones concurrentes con 401 producen un solo `POST /auth/refresh`, aplican el par rotado y actualizan `user`.
+- [x] CA-03 El interceptor reintenta **una** vez la petición original con el access nuevo; un segundo 401, o la ausencia de refresh, limpia la sesión y navega a `/login?returnUrl=…` (`reason=expired` cuando falló un refresh) sin bucles.
+- [x] CA-04 `restoreSession()` renueva en el arranque cuando el access venció o falta y hay refresh persistido; `ensureValidSession()` intenta renovar antes de declarar la sesión caída. Sigue siendo idempotente.
+- [x] CA-05 «Salir» emite `POST /auth/logout` fire-and-forget, limpia access, refresh y `expiresAt`, y navega a `/login` con `replaceUrl`; un fallo de red no impide el cierre local.
+- [x] CA-06 Los endpoints `/auth/login`, `/auth/refresh`, `/auth/logout` y `/auth/me` no reciben Bearer adjunto ni pasan por el manejo de 401 del interceptor; el 401 del login se propaga intacto al formulario.
+- [x] CA-07 Mensajes propios en español, sin exponer `detail`, `code` ni `message` del backend; el refresh token no se loguea ni se envía a otros endpoints.
+- [x] CA-08 `docs/AUTH.md` documenta el contrato dual, la persistencia, la renovación reactiva y el motivo de expiración; F-002 queda con nota de vigencia.
+- [x] CA-09 `npm run lint`, `npm test`, `npm run build`, `npm run features:validate` y Prettier de lo tocado en verde, con las specs que fijaban «sin refresh» y «logout sin petición» actualizadas. La suite corre con `vitest-base.config.mts` (`testTimeout` 15 s): el primer test de ruta lazy de `app.spec.ts` supera los 5 s por defecto bajo 60 archivos en paralelo (medido 5317 ms) y con el límite nuevo sigue detectando cuelgues reales.
+
+**Tareas**
+
+- [x] T-016-01 `auth.models.ts`: `TokenPairResponseDto`, `RefreshRequestDto` y alias de login/refresh; `auth.service.ts`: persistencia de access/refresh/`expiresAt` y `applyTokenPair()`.
+- [x] T-016-02 `refreshSession()` single-flight, `restoreSession()` con renovación y `ensureValidSession()` con reintento.
+- [x] T-016-03 `auth.interceptor.ts`: exclusión de endpoints públicos, 401 → refresh + un reintento, sesión caída con `reason=expired`.
+- [x] T-016-04 `logout()` con `POST /auth/logout` fire-and-forget.
+- [x] T-016-05 Specs del servicio e interceptor (RED → GREEN) y actualización de las specs estructurales afectadas.
+- [x] T-016-06 `docs/AUTH.md`, timeout de la suite (`vitest-base.config.mts`), cierre de la feature y checks completos.
+
+**Preguntas abiertas**
+
+Ninguna. Resueltas por el humano el 2026-10-27:
+
+- **PQ-01 — Persistencia:** primero «Access en localStorage + refresh en sessionStorage»; el humano lo cambió el mismo día («Muevelo al local storage»): las tres claves viven en `localStorage` y la renovación adopta el token rotado por otra pestaña.
+- **PQ-02 — Disparador:** reactivo al 401 y en el arranque, sin temporizadores.
+- **PQ-03 — Logout:** `POST /auth/logout` y luego limpiar; fire-and-forget.
+
+**Historial**
+
+- 2026-10-27 — humano: «Vamos a implementar ahora el refresh token. Verifica la docs del backend»; team-lead verificó FEAT-020/ADR-0002 y transcribió la aprobación y la fecha.
+- 2026-10-27 — team-lead: feature en `in_progress`; body JSON (sin cookies) y rotación single-flight implementados según el contrato del backend.
+- 2026-10-27 — team-lead: **PASS del reviewer** e implementación cerrada. Verificación final: `npm run lint` limpio, `npm test` **60 archivos / 1076 tests** en verde, `npm run build` en verde (49,4 s), `npm run features:validate` con **16 features válidas** y Prettier limpio en los archivos tocados (`feature-list.md` ya era no conforme en `HEAD`, no se reformateó para no inflar el diff). La suite pasó a `vitest-base.config.mts` con `testTimeout` de 15 s porque el primer test de ruta lazy de `app.spec.ts` tomó 5317 ms bajo la carga de 60 archivos en paralelo; la comprobación diferencial contra `HEAD` (stash + suite completa, 1058 en verde) descartó una regresión de comportamiento. **Pendiente humano**: commit y push (el repo prohíbe commits automáticos); este cambio son ~980 líneas de diff en `core/auth`, `docs/AUTH.md`, `feature-list.md` y config de tests, partibles en 3 slices de ~400 líneas.
+- 2026-10-27 — pedido humano: «Muevelo al local storage». S2/S4 reabiertas: refresh y `expiresAt` pasan a `localStorage` (todo el par en `localStorage`), la sesión persiste al cerrar el navegador y se comparte entre pestañas; `refreshSession()` relee el token persistido en cada intento y, si otra pestaña lo rotó, adopta el nuevo y reintenta una vez antes de cerrar la sesión (test propio). Specs y `docs/AUTH.md` actualizados; verificación: suite completa, lint, build y `features:validate` en verde.
 ## Plantilla
 
 ```md
